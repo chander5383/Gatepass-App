@@ -8,33 +8,33 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-  <div class="container">
+  <div class="gatepass-container">
 
     <!-- HEADER -->
-    <header class="header">
-      <div class="header-left">
-        <img src="logo.png" class="logo" alt="GWTPL Logo">
+    <header class="gp-header">
+      <div class="gp-header-left">
+        <img src="logo.png" alt="Logo" class="gp-logo">
       </div>
-      <div class="header-center">
+      <div class="gp-header-center">
         <h2>GLOBUS WAREHOUSING & TRADING PRIVATE LIMITED</h2>
         <p>ABOHAR</p>
       </div>
-      <div class="header-right">
+      <div class="gp-header-right">
         <div id="qrCode"></div>
       </div>
     </header>
 
     <!-- GATEPASS INFO -->
-    <section class="gate-info">
+    <section class="gp-info">
       <div><label>Gate Pass No:</label><input type="text" id="gatePassNo" readonly></div>
       <div><label>Date:</label><input type="date" id="date"></div>
       <div><label>Vehicle No:</label><input type="text" id="vehicleNo" placeholder="Enter vehicle no"></div>
     </section>
 
     <!-- CONSIGNOR / CONSIGNEE -->
-    <section class="section">
+    <section class="gp-section">
       <h3>Consignor / Consignee Details</h3>
-      <div class="row">
+      <div class="gp-row">
         <div>
           <label>Consignor (Godown):</label>
           <input type="text" id="consignor" placeholder="Enter godown name">
@@ -47,9 +47,9 @@
     </section>
 
     <!-- ITEM DETAILS -->
-    <section class="section">
+    <section class="gp-section">
       <h3>Item Details</h3>
-      <table id="itemTable">
+      <table id="itemTable" class="items-table">
         <thead>
           <tr>
             <th>Sr</th>
@@ -67,25 +67,25 @@
     </section>
 
     <!-- REMARKS -->
-    <section class="section">
+    <section class="gp-section">
       <h3>Remarks</h3>
       <textarea id="remarks" rows="3" placeholder="Enter remarks here"></textarea>
       <p class="goods-note">Goods are not for sale – only site to site transfer</p>
     </section>
 
     <!-- SIGNATURE -->
-    <section class="section signatures">
-      <div class="sign-block">
+    <section class="gp-section signature-section">
+      <div class="sig-box">
         <h4>For Authorised Person</h4>
         <label>Name:</label><input type="text" id="authName"><br>
         <label>Designation:</label><input type="text" id="authDesig"><br>
-        <label>Stamp & Sign:</label><div class="stamp"></div>
+        <label>Stamp & Sign:</label><div class="stamp-box"></div>
       </div>
-      <div class="sign-block">
+      <div class="sig-box">
         <h4>For Security</h4>
         <label>Register Sr No:</label><input type="text" id="secSr"><br>
         <label>Date:</label><input type="date" id="secDate"><br>
-        <label>Stamp & Sign (Security):</label><div class="stamp"></div>
+        <label>Stamp & Sign (Security):</label><div class="stamp-box"></div>
       </div>
     </section>
 
@@ -93,7 +93,7 @@
       <p id="printedOn"></p>
     </footer>
 
-    <div class="actions">
+    <div class="gp-actions">
       <button id="saveBtn">💾 Save</button>
       <button id="printBtn">🖨️ Print</button>
     </div>
