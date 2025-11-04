@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>GWTPL Gate Pass (v7)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GWTPL Gate Pass (v10)</title>
 
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="style.css" />
 
-  <!-- Libraries for PDF (CDN) -->
+  <!-- PDF libs (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -15,108 +15,119 @@
   <header class="topbar">
     <div class="brand">GWTPL Gate Pass</div>
     <div class="actions">
-      <button id="openHistory" class="muted">History</button>
-      <button id="saveBtn">Save & New</button>
-      <button id="printBtn">Print</button>
-      <button id="pdfBtn">Download PDF</button>
+      <button id="openHistory" class="btn muted">History</button>
+      <button id="saveBtn" class="btn primary">Save & New</button>
+      <button id="printBtn" class="btn">Print</button>
+      <button id="pdfBtn" class="btn">Download PDF</button>
     </div>
   </header>
 
   <main class="layout">
-    <aside class="history" id="historyPanel" aria-hidden="true">
-      <h3>Saved Gate Passes</h3>
-      <div id="historyList"></div>
-      <div class="hist-controls">
-        <button id="clearHistory" class="muted">Clear</button>
-        <button id="closeHistory" class="muted">Close</button>
+    <aside class="history-panel" id="historyPanel" aria-hidden="true">
+      <h3>GatePass History</h3>
+      <div class="hist-filters">
+        <input id="histSearch" placeholder="Search GatePass / Consignor" />
+        <button id="clearHistory" class="btn muted">Clear Local</button>
+        <button id="closeHistory" class="btn muted">Close</button>
       </div>
+      <div id="historyList" class="history-list"></div>
     </aside>
 
     <section class="paper-wrap">
-      <article class="paper" id="sheetRoot">
+      <!-- Printable area: contains two copies stacked -->
+      <div class="paper" id="sheetRoot">
+
+        <!-- Watermark (faint) -->
         <div class="watermark" id="watermark"></div>
 
-        <!-- Header -->
-        <div class="header">
+        <!-- Print copy container: we will render two identical copies stacked -->
+        <div class="copy" id="copyTop"></div>
+        <div class="copy" id="copyBottom"></div>
+
+      </div>
+    </section>
+
+    <!-- Hidden form area used for editing / creating records.
+         Also used to generate the copies. Kept visible on screen area below for convenience. -->
+    <section class="editor">
+      <article class="box header-box">
+        <div class="header-left">
           <img class="logo" src="https://gwtpl.co/logo.png" alt="logo">
-          <div class="title">
-            <div class="company">GLOBUS WAREHOUSING &amp; TRADING PRIVATE LIMITED</div>
-            <div class="place">ABOHAR</div>
-            <div class="voucher">STOCK TRANSFER VOUCHER</div>
-          </div>
-          <div class="meta">
-            <label>Gate Pass No</label>
-            <div id="metaGpNo" class="gpbox"></div>
-
-            <label style="margin-top:8px">Date</label>
-            <input id="metaDate" type="date">
-
-            <label style="margin-top:8px">Type</label>
-            <select id="metaType" class="hidden-print">
-              <option>STOCK TRANSFER VOUCHER</option>
-              <option>STOCK VOUCHER (RETURNABLE STOCK)</option>
-              <option>RETURN</option>
-              <option>TRANSFER</option>
-            </select>
-          </div>
         </div>
+        <div class="header-center">
+          <div class="company">GLOBUS WAREHOUSING &amp; TRADING PRIVATE LIMITED</div>
+          <div class="place">ABOHAR</div>
+          <div class="voucher">STOCK TRANSFER VOUCHER</div>
+        </div>
+        <div class="header-meta">
+          <label>Gate Pass No</label>
+          <div id="metaGpNo" class="gpbox"></div>
+          <label>Date</label>
+          <input id="metaDate" type="date">
+          <label>Type</label>
+          <select id="metaType">
+            <option>STOCK TRANSFER VOUCHER</option>
+            <option>STOCK VOUCHER (RETURNABLE STOCK)</option>
+            <option>RETURN</option>
+            <option>TRANSFER</option>
+          </select>
+        </div>
+      </article>
 
-        <!-- Details -->
-        <div class="details">
-          <div class="field">
+      <article class="box details-box">
+        <div class="grid-3">
+          <div>
             <label>Consignor (Godown)</label>
             <input id="godownManual" placeholder="Enter godown name (manual)">
             <datalist id="recentGodowns"></datalist>
           </div>
-
-          <div class="field">
+          <div>
             <label>Consignee Unit</label>
             <input id="consignee" value="GWTPL Abohar" readonly>
           </div>
-
-          <div class="field">
+          <div>
             <label>Vehicle No</label>
             <input id="vehicleNo" placeholder="Vehicle No">
           </div>
-
-          <div class="field">
+        </div>
+        <div class="grid-3" style="margin-top:10px">
+          <div>
             <label>Person Carrying</label>
             <input id="personCarrying" placeholder="Name">
           </div>
-
-          <div class="field">
+          <div>
             <label>Authority Person</label>
             <input id="authorityPerson" value="Sh." placeholder="Authority Person">
           </div>
+          <div></div>
         </div>
+      </article>
 
-        <!-- Items -->
+      <article class="box items-box">
         <div class="items-head">
           <h4>Item Details</h4>
           <div class="controls">
             <label><input type="checkbox" id="chkTag"> Tag No</label>
             <label><input type="checkbox" id="chkSr"> Sr No</label>
-            <button id="btnAddRow" class="btn">+ Add Item</button>
-            <button id="btnClearRows" class="btn secondary">Clear Items</button>
+            <button id="btnAddRow" class="btn primary">+ Add Item</button>
+            <button id="btnClearRows" class="btn muted">Clear Items</button>
           </div>
         </div>
 
         <table class="items-table" id="itemsTable">
           <thead>
             <tr>
-              <th>Sr</th>
-              <th>Item Description</th>
-              <th id="thTag">Tag No</th>
-              <th id="thSr">Sr No</th>
-              <th>Qty</th>
-              <th>Unit</th>
-              <th>Remarks</th>
-              <th class="hidden-print">Action</th>
+              <th style="width:5%">Sr</th>
+              <th style="width:45%">Item Description</th>
+              <th id="thTag" style="width:12%">Tag No</th>
+              <th id="thSr" style="width:10%">Sr No</th>
+              <th style="width:8%">Qty</th>
+              <th style="width:8%">Unit</th>
+              <th style="width:12%">Remarks</th>
+              <th class="action-col">Action</th>
             </tr>
           </thead>
-          <tbody id="itemsBody">
-            <!-- rows inserted by JS -->
-          </tbody>
+          <tbody id="itemsBody"></tbody>
           <tfoot>
             <tr>
               <td colspan="4" class="text-right"><strong>Total Qty</strong></td>
@@ -128,66 +139,59 @@
             </tr>
           </tfoot>
         </table>
+      </article>
 
-        <!-- Remarks & QR -->
-        <div class="notes-qr">
-          <div class="remarks">
-            <label>Remarks</label>
-            <textarea id="remarks" rows="2" placeholder="Any remarks..."></textarea>
-          </div>
-          <div class="qr">
-            <div id="qrBox" class="qrbox"></div>
-            <div class="gen">Generated on: <span id="genOn"></span><br><small>Scan QR for verification</small></div>
-          </div>
+      <article class="box remarks-qr">
+        <div class="remarks">
+          <label>Remarks</label>
+          <textarea id="remarks" rows="3" placeholder="Any remarks..."></textarea>
         </div>
-
-        <div class="cutline">Security Copy / Office Copy</div>
-
-        <!-- Signature Sections: each section has two columns -->
-        <div class="sign-blocks">
-          <!-- Consignee / Issued By -->
-          <section class="sign-section">
-            <h5>Consignee / Issued By</h5>
-            <div class="sign-grid">
-              <div class="col">
-                <div class="col-title">For Authorised Person</div>
-                <label>Name</label><input id="issuedName" placeholder="Name">
-                <label>Designation</label><input id="issuedDesg" placeholder="Designation">
-                <label>Date</label><input id="issuedDate" type="date">
-                <div class="stamp">Stamp &amp; Sign</div>
-              </div>
-              <div class="col">
-                <div class="col-title">For Security</div>
-                <label>Name</label><input id="issueSecName" placeholder="Name">
-                <label>Register Sr. No.</label><input id="issueSecReg" placeholder="Register Sr No">
-                <label>Date</label><input id="issueSecDate" type="date">
-                <div class="stamp">Stamp (Security)</div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Consignor / Received By -->
-          <section class="sign-section">
-            <h5>Consignor / Received By</h5>
-            <div class="sign-grid">
-              <div class="col">
-                <div class="col-title">For Authorised Person</div>
-                <label>Name</label><input id="receivedName" placeholder="Name">
-                <label>Designation</label><input id="receivedDesg" placeholder="Designation">
-                <label>Date</label><input id="receivedDate" type="date">
-                <div class="stamp">Stamp &amp; Sign</div>
-              </div>
-              <div class="col">
-                <div class="col-title">For Security</div>
-                <label>Name</label><input id="recSecName" placeholder="Name">
-                <label>Register Sr. No.</label><input id="recSecReg" placeholder="Register Sr No">
-                <label>Date (manual)</label><input id="recSecDate" placeholder="(write manually)">
-                <div class="stamp">Stamp (Security)</div>
-              </div>
-            </div>
-          </section>
+        <div class="qr-area">
+          <div id="qrBox" class="qrbox"></div>
+          <div class="gen">Generated on: <span id="genOn"></span></div>
         </div>
+      </article>
 
+      <article class="box signature-area">
+        <section class="sign-section">
+          <h5>Consignee / Issued By</h5>
+          <div class="sign-grid">
+            <div class="col">
+              <div class="col-title">For Authorised Person</div>
+              <label>Name</label><input id="issuedName" placeholder="Name">
+              <label>Designation</label><input id="issuedDesg" placeholder="Designation">
+              <label>Date</label><input id="issuedDate" type="date">
+              <div class="stamp">Stamp &amp; Sign</div>
+            </div>
+            <div class="col">
+              <div class="col-title">For Security</div>
+              <label>Name</label><input id="issueSecName" placeholder="Name">
+              <label>Register Sr. No.</label><input id="issueSecReg" placeholder="Register Sr No">
+              <label>Date</label><input id="issueSecDate" type="date">
+              <div class="stamp">Stamp (Security)</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sign-section">
+          <h5>Consignor / Received By</h5>
+          <div class="sign-grid">
+            <div class="col">
+              <div class="col-title">For Authorised Person</div>
+              <label>Name</label><input id="receivedName" placeholder="Name">
+              <label>Designation</label><input id="receivedDesg" placeholder="Designation">
+              <label>Date</label><input id="receivedDate" type="date">
+              <div class="stamp">Stamp &amp; Sign</div>
+            </div>
+            <div class="col">
+              <div class="col-title">For Security</div>
+              <label>Name</label><input id="recSecName" placeholder="Name">
+              <label>Register Sr. No.</label><input id="recSecReg" placeholder="Register Sr No">
+              <label>Date (manual)</label><input id="recSecDate" placeholder="(write manually)">
+              <div class="stamp">Stamp (Security)</div>
+            </div>
+          </div>
+        </section>
       </article>
     </section>
   </main>
