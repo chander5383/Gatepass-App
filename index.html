@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GWTPL Gate Pass (v13)</title>
+  <title>GWTPL Gate Pass (v13.1)</title>
 
   <link rel="stylesheet" href="style.css" />
 
@@ -24,7 +24,7 @@
   </header>
 
   <main class="layout">
-    <!-- History (hidden by default) -->
+    <!-- History -->
     <aside id="historyPanel" class="history-panel" aria-hidden="true">
       <h3>GatePass History</h3>
       <div class="hist-controls">
@@ -37,14 +37,13 @@
       <div id="historyList" class="history-list"></div>
     </aside>
 
-    <!-- Preview (single page visible) -->
+    <!-- Single Live Preview -->
     <section class="preview-wrap">
       <article id="previewCopy" class="preview-copy"></article>
     </section>
 
-    <!-- Editor form (below preview on small screens; side-by-side on wide screens) -->
+    <!-- Editor Form -->
     <section class="editor">
-      <!-- Header form -->
       <div class="box header-box">
         <div class="header-left">
           <img id="logoImg" class="logo" src="https://gwtpl.co/logo.png" alt="logo">
@@ -101,7 +100,7 @@
         </div>
       </div>
 
-      <!-- Items -->
+      <!-- Items Table -->
       <div class="box section">
         <div class="section-title">Item Details</div>
         <div class="items-head">
@@ -116,7 +115,7 @@
         </div>
 
         <div class="table-wrap">
-          <table class="items-table" id="itemsTable" aria-label="Items Table">
+          <table class="items-table" id="itemsTable">
             <thead>
               <tr>
                 <th class="w-sr">Sr</th>
