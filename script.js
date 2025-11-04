@@ -1,4 +1,10 @@
-/* v12 script - responsive + QR + print-4 + printed-on + Goods note + Google Sheet */
+/* v13 script - responsive + QR + print-4 + printed-on + Goods note + Google Sheet
+   - Duplicate functions removed
+   - validation improved (metaDate required)
+   - incrementLocal() now called only on confirmed server success
+   - resetForm now resets metaType selection (doesn't forcibly change date/gpno)
+*/
+
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRQnXv5VJe8Io0QSyNEddGvZazOFU_QVLdrT7tCWoP9D_0kIJKR6pXv68bs_6rMotFug/exec";
 
 document.addEventListener('DOMContentLoaded', boot);
@@ -10,34 +16,35 @@ function boot(){
   populateDatalist();
   addRow();
   generateLocalGP();
-  el('metaDate').value = new Date().toISOString().slice(0,10);
-  el('genOn').textContent = new Date().toLocaleString();
+  if(el('metaDate') && !el('metaDate').value) el('metaDate').value = new Date().toISOString().slice(0,10);
+  if(el('genOn')) el('genOn').textContent = new Date().toLocaleString();
   renderPreviewFromForm();
 }
 
 /* bind events */
 function bind(){
-  el('btnAddRow').addEventListener('click', addRow);
-  el('btnClearRows').addEventListener('click', clearRows);
-  el('saveBtn').addEventListener('click', onSave);
-  el('printBtn').addEventListener('click', printFourCopies);
-  el('pdfBtn').addEventListener('click', downloadPDFFourCopies);
-  el('chkTag').addEventListener('change', toggleColumns);
-  el('chkSr').addEventListener('change', toggleColumns);
+  if(el('btnAddRow')) el('btnAddRow').addEventListener('click', addRow);
+  if(el('btnClearRows')) el('btnClearRows').addEventListener('click', clearRows);
+  if(el('saveBtn')) el('saveBtn').addEventListener('click', onSave);
+  if(el('printBtn')) el('printBtn').addEventListener('click', printFourCopies);
+  if(el('pdfBtn')) el('pdfBtn').addEventListener('click', downloadPDFFourCopies);
+  if(el('chkTag')) el('chkTag').addEventListener('change', toggleColumns);
+  if(el('chkSr')) el('chkSr').addEventListener('change', toggleColumns);
 
-  el('openHistory').addEventListener('click', ()=> { el('historyPanel').setAttribute('aria-hidden','false'); renderHistory(); });
-  el('closeHistory').addEventListener('click', ()=> el('historyPanel').setAttribute('aria-hidden','true'));
-  el('clearHistory').addEventListener('click', ()=> { localStorage.removeItem('gwtpl_backup'); renderHistory(); });
+  if(el('openHistory')) el('openHistory').addEventListener('click', ()=> { el('historyPanel').setAttribute('aria-hidden','false'); renderHistory(); });
+  if(el('closeHistory')) el('closeHistory').addEventListener('click', ()=> el('historyPanel').setAttribute('aria-hidden','true'));
+  if(el('clearHistory')) el('clearHistory').addEventListener('click', ()=> { localStorage.removeItem('gwtpl_backup'); renderHistory(); });
 
-  el('godownManual').addEventListener('change', onConsignorChange);
+  if(el('godownManual')) el('godownManual').addEventListener('change', onConsignorChange);
   qAll('input,select,textarea').forEach(i => i.addEventListener('input', ()=> { computeTotal(); renderPreviewFromForm(); }));
-  el('itemsBody').addEventListener('input', ()=> { computeTotal(); renderPreviewFromForm(); });
+  if(el('itemsBody')) el('itemsBody').addEventListener('input', ()=> { computeTotal(); renderPreviewFromForm(); });
 }
 
 /* datalist recent consignors */
 function populateDatalist(){
   const map = JSON.parse(localStorage.getItem('gwtpl_godown_map')||'{}');
-  const ds = el('recentGodowns'); ds.innerHTML='';
+  const ds = el('recentGodowns'); if(!ds) return;
+  ds.innerHTML='';
   Object.keys(map).reverse().forEach(k => { const o=document.createElement('option'); o.value=k; ds.appendChild(o); });
 }
 
@@ -80,18 +87,18 @@ function clearRows(){ el('itemsBody').innerHTML=''; addRow(); computeTotal(); re
 function computeTotal(){
   const qtyEls = qAll('.itm-qty');
   const total = qtyEls.reduce((s,e)=> s + (parseFloat(e.value)||0), 0);
-  el('totalQty').textContent = total;
+  if(el('totalQty')) el('totalQty').textContent = total;
   const rows = qAll('#itemsBody tr').map(tr => ({unit: tr.querySelector('.itm-unit').value, qty: parseFloat(tr.querySelector('.itm-qty').value)||0}));
   const subtotal = {};
   rows.forEach(r => { subtotal[r.unit] = (subtotal[r.unit]||0) + r.qty; });
   const parts = Object.keys(subtotal).map(u => `${u}: ${subtotal[u]}`);
-  el('unitSubtotals').textContent = parts.length ? 'Subtotals — ' + parts.join(' | ') : '';
+  if(el('unitSubtotals')) el('unitSubtotals').textContent = parts.length ? 'Subtotals — ' + parts.join(' | ') : '';
 }
 
 /* toggle Tag/Sr display */
 function toggleColumns(){
-  const showTag = el('chkTag').checked;
-  const showSr = el('chkSr').checked;
+  const showTag = el('chkTag') && el('chkTag').checked;
+  const showSr = el('chkSr') && el('chkSr').checked;
   qAll('.itm-tag').forEach(x => x.style.display = showTag ? '' : 'none');
   qAll('.itm-sr').forEach(x => x.style.display = showSr ? '' : 'none');
   if(el('thTag')) el('thTag').style.display = showTag ? '' : 'none';
@@ -108,14 +115,15 @@ function generateLocalGP(){
     cnt = 1; localStorage.setItem('gwtpl_pass_year', String(year)); localStorage.setItem('gwtpl_pass', String(cnt));
   } else if(cnt < 1) cnt = 1;
   const serial = String(cnt).padStart(3,'0');
-  el('metaGpNo').textContent = `GWTPL/ABOHAR/${year}/${serial}`;
+  if(el('metaGpNo')) el('metaGpNo').textContent = `GWTPL/ABOHAR/${year}/${serial}`;
 }
 function incrementLocal(){ let cnt = parseInt(localStorage.getItem('gwtpl_pass')||'1',10); cnt++; localStorage.setItem('gwtpl_pass', String(cnt)); generateLocalGP(); }
 
 /* validation */
 function validateForm(){
   qAll('.error').forEach(e=> e.classList.remove('error'));
-  if(!el('godownManual').value.trim()){ el('godownManual').classList.add('error'); el('godownManual').focus(); return false; }
+  if(!el('godownManual') || !el('godownManual').value.trim()){ if(el('godownManual')) el('godownManual').classList.add('error'); if(el('godownManual')) el('godownManual').focus(); alert('Consignor (Godown) is required'); return false; }
+  if(!el('metaDate') || !el('metaDate').value.trim()){ if(el('metaDate')) el('metaDate').classList.add('error'); if(el('metaDate')) el('metaDate').focus(); alert('Date is required'); return false; }
   const rows = qAll('#itemsBody tr').map(tr => ({name: tr.querySelector('.itm-name').value.trim(), qty: tr.querySelector('.itm-qty').value.trim()}));
   if(!rows.some(r => r.name && r.qty && Number(r.qty) > 0)){ alert('Add at least one item with valid qty'); return false; }
   return true;
@@ -172,15 +180,34 @@ async function onSave(){
   try{
     const resp = await fetch(APPS_SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     const j = await resp.json().catch(()=>null);
-    if(j && j.nextSerial) localStorage.setItem('gwtpl_pass', String(j.nextSerial));
-    saveLocal(payload);
-    alert('Saved → Google Sheet & Local backup.');
-    incrementLocal(); resetForm(); renderHistory();
+    // Only increment local serial if server acknowledges success (avoid skipping numbers on server failure)
+    if(resp && resp.ok && j && j.nextSerial){
+      localStorage.setItem('gwtpl_pass', String(j.nextSerial));
+      saveLocal(payload);
+      alert('Saved → Google Sheet & Local backup.');
+      incrementLocal();
+      resetForm();
+      renderHistory();
+    } else if(resp && resp.ok){
+      // server ok but no nextSerial: still treat as success
+      saveLocal(payload);
+      alert('Saved → Google Sheet & Local backup.');
+      incrementLocal();
+      resetForm();
+      renderHistory();
+    } else {
+      // server returned error: fallback to local save
+      saveLocal(payload);
+      alert('Server responded with error — saved locally.');
+      resetForm();
+      renderHistory();
+    }
   }catch(e){
     console.warn('Server save failed', e);
     saveLocal(payload);
     alert('Server error — saved locally.');
-    incrementLocal(); resetForm(); renderHistory();
+    // on network error do not increment local serial (to avoid mismatch with server)
+    resetForm(); renderHistory();
   }
 }
 
@@ -195,7 +222,8 @@ function saveLocal(data){
 /* history */
 function renderHistory(){
   const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]');
-  const container = el('historyList'); container.innerHTML='';
+  const container = el('historyList'); if(!container) return;
+  container.innerHTML='';
   if(!list.length){ container.innerHTML = '<div style="color:#666;padding:8px">No saved records</div>'; return; }
   list.slice(0,100).forEach((it, idx) => {
     const node = document.createElement('div'); node.className='hist-row'; node.style.padding='8px'; node.style.borderBottom='1px solid #eef6fb';
@@ -391,9 +419,10 @@ function buildCopyHtml(data, label){
 function renderPreviewFromForm(){
   const data = collectFormData();
   const html = buildCopyHtml(data, 'Office Copy');
-  el('previewCopy').innerHTML = html;
+  if(el('previewCopy')) el('previewCopy').innerHTML = html;
   // generate QR in preview
-  generateQRCode(el('previewCopy').querySelector('#qr-placeholder'), data);
+  const ph = el('previewCopy') ? el('previewCopy').querySelector('#qr-placeholder') : null;
+  generateQRCode(ph, data);
 }
 
 /* build print area with 4 pages and append to body */
@@ -488,13 +517,6 @@ async function downloadPDFFourCopies(){
   pdf.save(`GatePass_${gp}.pdf`);
 }
 
-/* history print wrapper */
-function printFromHistory(i){
-  const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]'); const it = list[i]; if(!it) return;
-  buildPrintAreaWithFourCopies(it);
-  setTimeout(()=> window.print(), 400);
-}
-
 /* generate QR */
 function generateQRCode(targetEl, data){
   if(!targetEl) return;
@@ -511,7 +533,8 @@ function resetForm(){
   ['godownManual','vehicleNo','personCarrying','authorityPerson','remarks',
    'issuedName','issuedDesg','issuedDate','issueSecName','issueSecReg','issueSecDate',
    'receivedName','receivedDesg','receivedDate','recSecName','recSecReg','recSecDate'].forEach(id=>{ if(el(id)) el(id).value=''; });
-  el('genOn').textContent = new Date().toLocaleString();
+  if(el('metaType')) el('metaType').selectedIndex = 0;
+  if(el('genOn')) el('genOn').textContent = new Date().toLocaleString();
   renderPreviewFromForm();
 }
 
