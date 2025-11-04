@@ -1,37 +1,30 @@
-/* v10 final script
-   - Connected to Google Apps Script URL below
-   - Auto GatePass numbering, add/remove items, Tag/Sr toggles
-   - Save -> Google Sheet + local backup
-   - History with Open & Print old GatePass
-   - Generate 2 copies in #copyTop and #copyBottom and print/pdf
-*/
-
+/* v10.3 script - grouped + QR + Google Sheet integration */
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRQnXv5VJe8Io0QSyNEddGvZazOFU_QVLdrT7tCWoP9D_0kIJKR6pXv68bs_6rMotFug/exec";
 const APPS_EXPECTS_JSON_RESPONSE = true;
 
-document.addEventListener('DOMContentLoaded', ()=> {
-  boot();
-});
+document.addEventListener('DOMContentLoaded', () => { boot(); });
 
-function el(id){ return document.getElementById(id); }
-function qAll(sel){ return Array.from(document.querySelectorAll(sel)); }
+/* helpers */
+const el = id => document.getElementById(id);
+const qAll = sel => Array.from(document.querySelectorAll(sel));
 
 function boot(){
   bind();
   populateDatalist();
-  addRow();
+  addRow(); // ensure one item row
   generateLocalGP();
+  el('metaDate').value = new Date().toISOString().slice(0,10);
   el('genOn').textContent = new Date().toLocaleString();
-  renderCopiesFromForm(); // create initial copies for print preview
+  renderCopiesFromForm(); // initial render
 }
 
-/* Events */
+/* binding events */
 function bind(){
-  el('btnAddRow').addEventListener('click', ()=> addRow());
+  el('btnAddRow').addEventListener('click', addRow);
   el('btnClearRows').addEventListener('click', clearRows);
   el('saveBtn').addEventListener('click', onSave);
-  el('printBtn').addEventListener('click', ()=> printCurrent());
-  el('pdfBtn').addEventListener('click', ()=> exportPDF());
+  el('printBtn').addEventListener('click', printCurrent);
+  el('pdfBtn').addEventListener('click', exportPDF);
   el('chkTag').addEventListener('change', toggleColumns);
   el('chkSr').addEventListener('change', toggleColumns);
 
@@ -40,16 +33,17 @@ function bind(){
   el('clearHistory').addEventListener('click', ()=> { localStorage.removeItem('gwtpl_backup'); renderHistory(); });
 
   el('godownManual').addEventListener('change', onConsignorChange);
+
+  // update copies whenever form/input changes
+  qAll('input,select,textarea').forEach(inp => inp.addEventListener('input', ()=> { computeTotal(); renderCopiesFromForm(); }));
   el('itemsBody').addEventListener('input', ()=> { computeTotal(); renderCopiesFromForm(); });
-  // when most form inputs change, update copies:
-  qAll('input,select,textarea').forEach(i => i.addEventListener('input', renderCopiesFromForm));
 }
 
-/* Datalist for consignors */
+/* datalist from local map */
 function populateDatalist(){
   const map = JSON.parse(localStorage.getItem('gwtpl_godown_map')||'{}');
   const ds = el('recentGodowns'); ds.innerHTML = '';
-  Object.keys(map).reverse().forEach(k => { const o = document.createElement('option'); o.value = k; ds.appendChild(o); });
+  Object.keys(map).reverse().forEach(k => { const o=document.createElement('option'); o.value=k; ds.appendChild(o); });
 }
 
 /* Items table */
@@ -83,11 +77,11 @@ function addRow(prefill = {}){
   tr.querySelector('.itm-unit').addEventListener('change', ()=> { computeTotal(); renderCopiesFromForm(); });
   renumber(); computeTotal(); toggleColumns(); renderCopiesFromForm();
 }
-
 function getRowCount(){ return qAll('#itemsBody tr').length; }
 function renumber(){ qAll('#itemsBody tr').forEach((tr,i)=> tr.querySelector('.sr').textContent = i+1); }
 function clearRows(){ el('itemsBody').innerHTML=''; addRow(); computeTotal(); renderCopiesFromForm(); }
 
+/* totals & subtotals */
 function computeTotal(){
   const qtyEls = qAll('.itm-qty');
   const total = qtyEls.reduce((s,e) => s + (parseFloat(e.value)||0), 0);
@@ -99,7 +93,7 @@ function computeTotal(){
   el('unitSubtotals').textContent = parts.length ? 'Subtotals — ' + parts.join(' | ') : '';
 }
 
-/* Toggle Tag/Sr columns */
+/* toggle tag/sr columns */
 function toggleColumns(){
   const showTag = el('chkTag').checked;
   const showSr = el('chkSr').checked;
@@ -110,7 +104,7 @@ function toggleColumns(){
   renderCopiesFromForm();
 }
 
-/* GatePass numbering: reset per year */
+/* GatePass numbering */
 function generateLocalGP(){
   const now = new Date(); const year = now.getFullYear();
   const storedYear = localStorage.getItem('gwtpl_pass_year');
@@ -123,7 +117,7 @@ function generateLocalGP(){
 }
 function incrementLocal(){ let cnt = parseInt(localStorage.getItem('gwtpl_pass')||'1',10); cnt++; localStorage.setItem('gwtpl_pass', String(cnt)); generateLocalGP(); }
 
-/* Validation */
+/* validate */
 function validateForm(){
   qAll('.error').forEach(e => e.classList.remove('error'));
   if(!el('godownManual').value.trim()){ el('godownManual').classList.add('error'); el('godownManual').focus(); return false; }
@@ -132,7 +126,7 @@ function validateForm(){
   return true;
 }
 
-/* Save to Google Sheet */
+/* Save to Google Sheet + local backup */
 async function onSave(){
   if(!validateForm()) return;
   const items = qAll('#itemsBody tr').map(tr => ({
@@ -155,6 +149,8 @@ async function onSave(){
     authorityPerson: el('authorityPerson').value.trim(),
     items,
     totalQty: el('totalQty').textContent,
+    unitSub: el('unitSubtotals').textContent.replace('Subtotals — ',''),
+    remarks: el('remarks').value.trim(),
     issuedName: el('issuedName').value.trim(),
     issuedDesg: el('issuedDesg').value.trim(),
     issuedDate: el('issuedDate').value || '',
@@ -167,11 +163,10 @@ async function onSave(){
     recSecName: el('recSecName').value.trim(),
     recSecReg: el('recSecReg').value.trim(),
     recSecDate: el('recSecDate').value || '',
-    remarks: el('remarks').value.trim(),
     generatedAt: new Date().toISOString()
   };
 
-  // save mapping
+  // save mapping locally
   const consignor = payload.consignor;
   if(consignor){
     const map = JSON.parse(localStorage.getItem('gwtpl_godown_map')||'{}');
@@ -195,7 +190,7 @@ async function onSave(){
   }
 }
 
-/* Local backup */
+/* local backup */
 function saveLocal(data){
   const arr = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]');
   arr.unshift(data);
@@ -203,21 +198,20 @@ function saveLocal(data){
   localStorage.setItem('gwtpl_backup', JSON.stringify(arr));
 }
 
-/* Load from history and optionally print */
+/* history render/open/print */
 function renderHistory(){
   const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]');
-  const container = el('historyList'); container.innerHTML = '';
+  const container = el('historyList'); container.innerHTML='';
   if(!list.length){ container.innerHTML = '<div style="color:#666;padding:8px">No saved records</div>'; return; }
   list.slice(0,100).forEach((it, idx) => {
-    const row = document.createElement('div'); row.className = 'hist-row';
-    row.style.padding='8px'; row.style.borderBottom='1px solid #eef6fb';
-    row.innerHTML = `<div style="font-weight:700">${it.gatePassNo} • ${it.date}</div>
+    const node = document.createElement('div'); node.className='hist-row'; node.style.padding='8px'; node.style.borderBottom='1px solid #eef6fb';
+    node.innerHTML = `<div style="font-weight:700">${it.gatePassNo} • ${it.date}</div>
       <div style="font-size:13px;color:#444">${it.consignor || ''}</div>
       <div style="margin-top:8px">
         <button data-i="${idx}" class="btn muted hist-open">Open</button>
         <button data-i="${idx}" class="btn hist-print">Print</button>
       </div>`;
-    container.appendChild(row);
+    container.appendChild(node);
   });
   qAll('.hist-open').forEach(b => b.addEventListener('click', e => openFromHistory(parseInt(e.target.dataset.i,10))));
   qAll('.hist-print').forEach(b => b.addEventListener('click', e => printFromHistory(parseInt(e.target.dataset.i,10))));
@@ -225,190 +219,174 @@ function renderHistory(){
 
 function openFromHistory(i){
   const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]'); const it = list[i]; if(!it) return;
-  // populate form
-  el('metaGpNo').textContent = it.gatePassNo || '';
-  el('metaDate').value = it.date || '';
-  el('godownManual').value = it.consignor || '';
-  el('consignee').value = it.consignee || '';
-  el('vehicleNo').value = it.vehicleNo || '';
-  el('personCarrying').value = it.personCarrying || '';
-  el('authorityPerson').value = it.authorityPerson || '';
-  el('itemsBody').innerHTML = '';
-  (it.items||[]).forEach(r => addRow({name:r.name,tag:r.tag,sr:r.srno,qty:r.qty,unit:r.unit,remarks:r.remarks}));
+  // fill form
+  el('metaGpNo').textContent = it.gatePassNo || ''; el('metaDate').value = it.date || '';
+  el('godownManual').value = it.consignor || ''; el('consignee').value = it.consignee || '';
+  el('vehicleNo').value = it.vehicleNo || ''; el('personCarrying').value = it.personCarrying || ''; el('authorityPerson').value = it.authorityPerson || '';
+  el('itemsBody').innerHTML = ''; (it.items||[]).forEach(r => addRow({name:r.name,tag:r.tag,sr:r.srno,qty:r.qty,unit:r.unit,remarks:r.remarks}));
   el('remarks').value = it.remarks || '';
   el('issuedName').value = it.issuedName || ''; el('issuedDesg').value = it.issuedDesg || ''; el('issuedDate').value = it.issuedDate || '';
   el('issueSecName').value = it.issueSecName || ''; el('issueSecReg').value = it.issueSecReg || ''; el('issueSecDate').value = it.issueSecDate || '';
   el('receivedName').value = it.receivedName || ''; el('receivedDesg').value = it.receivedDesg || ''; el('receivedDate').value = it.receivedDate || '';
   el('recSecName').value = it.recSecName || ''; el('recSecReg').value = it.recSecReg || ''; el('recSecDate').value = it.recSecDate || '';
-  computeTotal(); renderCopiesFromForm();
-  el('historyPanel').setAttribute('aria-hidden','true');
+  computeTotal(); renderCopiesFromForm(); el('historyPanel').setAttribute('aria-hidden','true');
 }
 
-/* Print an old record directly (without loading to edit form) */
 function printFromHistory(i){
   const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]'); const it = list[i]; if(!it) return;
-  // render copies with the record data and print
   renderCopiesFromData(it);
-  setTimeout(()=> { window.print(); }, 500);
+  setTimeout(()=> window.print(), 400);
 }
 
-/* Render two copies on screen from current form values */
+/* render copies (two stacked) from current form */
 function renderCopiesFromForm(){
   const data = collectFormData();
   renderCopiesFromData(data);
 }
 
-/* Render two copies from given data object */
+/* build both copies from data */
 function renderCopiesFromData(data){
-  // build HTML for a single copy
-  const copyHtml = buildCopyHtml(data);
-  el('copyTop').innerHTML = copyHtml;
-  el('copyBottom').innerHTML = copyHtml;
+  // compute unitSub for display if missing
+  if(!data.unitSub){
+    data.unitSub = Array.isArray(data.items) ? (() => {
+      const s={}; (data.items||[]).forEach(it => { s[it.unit] = (s[it.unit]||0) + (parseFloat(it.qty)||0); });
+      return Object.keys(s).map(u => `${u}: ${s[u]}`).join(' | ');
+    })() : '';
+  }
+  el('copyTop').innerHTML = buildCopyHtml(data, 'Office Copy');
+  el('copyBottom').innerHTML = buildCopyHtml(data, 'Security Copy');
+
+  // generate QR for both copies
+  generateQRCodeForCopy('copyTop', data);
+  generateQRCodeForCopy('copyBottom', data);
 }
 
-/* Build single copy HTML (invoice-like) */
-function buildCopyHtml(data){
-  const itemsHtml = (data.items||[]).map(r => `
+/* build html string for one copy */
+function buildCopyHtml(d, label){
+  const itemsHtml = (d.items||[]).map(r => `
     <tr>
-      <td class="sr">${escapeHTML(r.sr||'')}</td>
-      <td>${escapeHTML(r.name||'')}</td>
-      <td>${escapeHTML(r.tag||'')}</td>
-      <td>${escapeHTML(r.srno||'')}</td>
-      <td class="text-center">${escapeHTML(r.qty||'')}</td>
-      <td class="text-center">${escapeHTML(r.unit||'')}</td>
-      <td>${escapeHTML(r.remarks||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.sr||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.name||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.tag||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.srno||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:8px;text-align:center">${escapeHTML(r.qty||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:8px;text-align:center">${escapeHTML(r.unit||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.remarks||'')}</td>
     </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:#666;padding:18px">No items</td></tr>`;
 
-  const headerHtml = `
-    <div class="header-top" style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-      <img src="https://gwtpl.co/logo.png" style="width:80px;height:auto;margin-right:12px">
+  const header = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <img src="https://gwtpl.co/logo.png" style="width:80px">
       <div style="flex:1;text-align:center">
-        <div style="font-weight:800;color:${'#0a4b76'};font-size:18px">GLOBUS WAREHOUSING &amp; TRADING PRIVATE LIMITED</div>
+        <div style="font-weight:800;color:#0a4b76;font-size:18px">GLOBUS WAREHOUSING &amp; TRADING PRIVATE LIMITED</div>
         <div style="font-weight:700;color:#0b4a61;margin-top:4px">ABOHAR</div>
         <div style="font-weight:800;color:#0b4a61;margin-top:8px">STOCK TRANSFER VOUCHER</div>
       </div>
       <div style="width:260px">
-        <div style="font-size:12px;color:#666">Gate Pass No</div>
-        <div style="border:1px solid #222;padding:8px;font-weight:800;background:#fafafa;margin-bottom:6px">${escapeHTML(data.gatePassNo||'')}</div>
+        <div style="font-size:12px;color:#666">${label}</div>
+        <div style="font-size:12px;color:#666;margin-top:4px">Gate Pass No</div>
+        <div style="border:1px solid #222;padding:8px;font-weight:800;background:#fafafa;margin-bottom:6px">${escapeHTML(d.gatePassNo||'')}</div>
         <div style="display:flex;gap:8px">
-          <div style="flex:1">
-            <div style="font-size:12px;color:#666">Date</div>
-            <div style="padding:6px;border:1px solid #e6eef5">${escapeHTML(data.date||'')}</div>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:12px;color:#666">Type</div>
-            <div style="padding:6px;border:1px solid #e6eef5">${escapeHTML(data.type||'')}</div>
-          </div>
+          <div style="flex:1"><div style="font-size:12px;color:#666">Date</div><div style="padding:6px;border:1px solid #e6eef5">${escapeHTML(d.date||'')}</div></div>
+          <div style="flex:1"><div style="font-size:12px;color:#666">Type</div><div style="padding:6px;border:1px solid #e6eef5">${escapeHTML(d.type||'')}</div></div>
         </div>
       </div>
     </div>`;
 
-  const detailsHtml = `
+  const details = `
     <table style="width:100%;border-collapse:collapse;margin-top:6px">
       <tr>
         <td style="width:33%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
           <div style="font-weight:700;color:#12323b;margin-bottom:6px">Consignor (Godown)</div>
-          <div>${escapeHTML(data.consignor||'')}</div>
+          <div>${escapeHTML(d.consignor||'')}</div>
         </td>
         <td style="width:33%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
           <div style="font-weight:700;color:#12323b;margin-bottom:6px">Consignee Unit</div>
-          <div>${escapeHTML(data.consignee||'')}</div>
+          <div>${escapeHTML(d.consignee||'')}</div>
         </td>
         <td style="width:34%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
           <div style="display:flex;gap:8px">
-            <div style="flex:1"><div style="font-weight:700;color:#12323b">Vehicle No</div><div>${escapeHTML(data.vehicleNo||'')}</div></div>
-            <div style="flex:1"><div style="font-weight:700;color:#12323b">Person Carrying</div><div>${escapeHTML(data.personCarrying||'')}</div></div>
+            <div style="flex:1"><div style="font-weight:700;color:#12323b">Vehicle No</div><div>${escapeHTML(d.vehicleNo||'')}</div></div>
+            <div style="flex:1"><div style="font-weight:700;color:#12323b">Person Carrying</div><div>${escapeHTML(d.personCarrying||'')}</div></div>
           </div>
         </td>
       </tr>
     </table>`;
 
-  const tableHtml = `
+  const table = `
     <table style="width:100%;border-collapse:collapse;margin-top:10px">
       <thead>
         <tr style="background:#f7fbfd;color:#12323b;font-weight:800">
-          <th style="border:1px solid #e9f4f9;padding:8px;width:6%">Sr</th>
-          <th style="border:1px solid #e9f4f9;padding:8px;width:44%">Item Description</th>
-          <th style="border:1px solid #e9f4f9;padding:8px;width:12%">Tag No</th>
-          <th style="border:1px solid #e9f4f9;padding:8px;width:10%">Sr No</th>
-          <th style="border:1px solid #e9f4f9;padding:8px;width:8%">Qty</th>
-          <th style="border:1px solid #e9f4f9;padding:8px;width:8%">Unit</th>
-          <th style="border:1px solid #e9f4f9;padding:8px;width:12%">Remarks</th>
+          <th style="padding:8px;border:1px solid #e9f4f9;width:6%">Sr</th>
+          <th style="padding:8px;border:1px solid #e9f4f9;width:44%">Item Description</th>
+          <th style="padding:8px;border:1px solid #e9f4f9;width:12%">Tag No</th>
+          <th style="padding:8px;border:1px solid #e9f4f9;width:10%">Sr No</th>
+          <th style="padding:8px;border:1px solid #e9f4f9;width:8%">Qty</th>
+          <th style="padding:8px;border:1px solid #e9f4f9;width:8%">Unit</th>
+          <th style="padding:8px;border:1px solid #e9f4f9;width:12%">Remarks</th>
         </tr>
       </thead>
       <tbody>${itemsHtml}</tbody>
       <tfoot>
         <tr>
           <td colspan="4" style="text-align:right;border:1px solid #e9f4f9;padding:8px;font-weight:700">Total Qty</td>
-          <td style="border:1px solid #e9f4f9;padding:8px;text-align:center;font-weight:700">${escapeHTML(data.totalQty||'0')}</td>
+          <td style="border:1px solid #e9f4f9;padding:8px;text-align:center;font-weight:700">${escapeHTML(d.totalQty||'0')}</td>
           <td colspan="2" style="border:1px solid #e9f4f9;padding:8px"></td>
         </tr>
         <tr>
-          <td colspan="7" style="padding:8px;border:1px solid #e9f4f9;color:#12323b">Subtotals — ${escapeHTML(data.unitSub||'')}</td>
+          <td colspan="7" style="padding:8px;border:1px solid #e9f4f9;color:#12323b">Subtotals — ${escapeHTML(d.unitSub||'')}</td>
         </tr>
       </tfoot>
     </table>`;
 
-  const remarksHtml = `
+  const remarks = `
     <div style="display:flex;justify-content:space-between;gap:12px;margin-top:12px">
       <div style="flex:1;border:1px solid #e9f4f9;padding:8px;border-radius:6px">
         <div style="font-weight:700;color:#12323b;margin-bottom:6px">Remarks</div>
-        <div style="min-height:40px">${escapeHTML(data.remarks||'')}</div>
+        <div style="min-height:40px">${escapeHTML(d.remarks||'')}</div>
       </div>
-      <div style="width:160px;text-align:center">
+      <div style="width:180px;text-align:center">
         <div style="font-size:12px;color:#666;margin-bottom:8px">Generated on</div>
-        <div style="font-size:12px;color:#333">${escapeHTML(data.generatedAt? (new Date(data.generatedAt)).toLocaleString() : (new Date()).toLocaleString())}</div>
+        <div style="font-size:12px;color:#333">${escapeHTML(d.generatedAt ? (new Date(d.generatedAt)).toLocaleString() : (new Date()).toLocaleString())}</div>
+        <div id="qr-placeholder" style="margin-top:8px"></div>
       </div>
     </div>`;
 
-  const signatureHtml = `
+  const signatures = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
       <div style="border:1px solid #e9f4f9;padding:10px;border-radius:6px">
         <div style="font-weight:800;color:#0b4a61;margin-bottom:6px">Consignee / Issued By</div>
-        <div style="display:flex;gap:12px">
-          <div style="flex:1">
-            <div style="font-weight:700">For Authorised Person</div>
-            <div>Name: ${escapeHTML(data.issuedName||'')}</div>
-            <div>Designation: ${escapeHTML(data.issuedDesg||'')}</div>
-            <div>Date: ${escapeHTML(data.issuedDate||'')}</div>
-            <div style="margin-top:8px" class="stamp">Stamp &amp; Sign</div>
-          </div>
-          <div style="flex:1">
-            <div style="font-weight:700">For Security</div>
-            <div>Name: ${escapeHTML(data.issueSecName||'')}</div>
-            <div>Register Sr: ${escapeHTML(data.issueSecReg||'')}</div>
-            <div>Date: ${escapeHTML(data.issueSecDate||'')}</div>
-            <div style="margin-top:8px" class="stamp">Stamp (Security)</div>
-          </div>
-        </div>
+        <div>Name: ${escapeHTML(d.issuedName||'')}</div>
+        <div>Designation: ${escapeHTML(d.issuedDesg||'')}</div>
+        <div>Date: ${escapeHTML(d.issuedDate||'')}</div>
+        <div style="margin-top:8px" class="stamp">Stamp &amp; Sign</div>
+        <hr style="margin:10px 0">
+        <div style="font-weight:700">For Security</div>
+        <div>Name: ${escapeHTML(d.issueSecName||'')}</div>
+        <div>Register Sr: ${escapeHTML(d.issueSecReg||'')}</div>
+        <div>Date: ${escapeHTML(d.issueSecDate||'')}</div>
+        <div style="margin-top:8px" class="stamp">Stamp (Security)</div>
       </div>
 
       <div style="border:1px solid #e9f4f9;padding:10px;border-radius:6px">
         <div style="font-weight:800;color:#0b4a61;margin-bottom:6px">Consignor / Received By</div>
-        <div style="display:flex;gap:12px">
-          <div style="flex:1">
-            <div style="font-weight:700">For Authorised Person</div>
-            <div>Name: ${escapeHTML(data.receivedName||'')}</div>
-            <div>Designation: ${escapeHTML(data.receivedDesg||'')}</div>
-            <div>Date: ${escapeHTML(data.receivedDate||'')}</div>
-            <div style="margin-top:8px" class="stamp">Stamp &amp; Sign</div>
-          </div>
-          <div style="flex:1">
-            <div style="font-weight:700">For Security</div>
-            <div>Name: ${escapeHTML(data.recSecName||'')}</div>
-            <div>Register Sr: ${escapeHTML(data.recSecReg||'')}</div>
-            <div>Date: ${escapeHTML(data.recSecDate||'')}</div>
-            <div style="margin-top:8px" class="stamp">Stamp (Security)</div>
-          </div>
-        </div>
+        <div>Name: ${escapeHTML(d.receivedName||'')}</div>
+        <div>Designation: ${escapeHTML(d.receivedDesg||'')}</div>
+        <div>Date: ${escapeHTML(d.receivedDate||'')}</div>
+        <div style="margin-top:8px" class="stamp">Stamp &amp; Sign</div>
+        <hr style="margin:10px 0">
+        <div style="font-weight:700">For Security</div>
+        <div>Name: ${escapeHTML(d.recSecName||'')}</div>
+        <div>Register Sr: ${escapeHTML(d.recSecReg||'')}</div>
+        <div>Date: ${escapeHTML(d.recSecDate||'')}</div>
+        <div style="margin-top:8px" class="stamp">Stamp (Security)</div>
       </div>
     </div>`;
 
-  // put all together
-  return `<div style="position:relative;z-index:1">${headerHtml}${detailsHtml}${tableHtml}${remarksHtml}${signatureHtml}</div>`;
+  return `<div style="position:relative;z-index:1">${header}${details}${table}${remarks}${signatures}</div>`;
 }
 
-/* Collect form data */
+/* collect form data */
 function collectFormData(){
   const items = qAll('#itemsBody tr').map(tr => ({
     sr: tr.querySelector('.sr').textContent,
@@ -419,7 +397,6 @@ function collectFormData(){
     unit: tr.querySelector('.itm-unit').value,
     remarks: tr.querySelector('.itm-remarks').value.trim()
   }));
-  const unitSub = el('unitSubtotals').textContent.replace('Subtotals — ','');
   return {
     gatePassNo: el('metaGpNo').textContent,
     date: el('metaDate').value,
@@ -431,7 +408,7 @@ function collectFormData(){
     authorityPerson: el('authorityPerson').value.trim(),
     items,
     totalQty: el('totalQty').textContent,
-    unitSub,
+    unitSub: el('unitSubtotals').textContent.replace('Subtotals — ',''),
     remarks: el('remarks').value.trim(),
     issuedName: el('issuedName').value.trim(),
     issuedDesg: el('issuedDesg').value.trim(),
@@ -449,84 +426,63 @@ function collectFormData(){
   };
 }
 
-/* Print current form (renders copies then prints) */
-function printCurrent(){
-  renderCopiesFromForm();
-  // small delay to ensure DOM updated
-  setTimeout(()=> window.print(), 450);
+/* QR generation: create QR inside copy container's qr-placeholder element */
+function generateQRCodeForCopy(copyId, data){
+  const container = el(copyId);
+  if(!container) return;
+  // find the placeholder inside the copy's generated HTML
+  const placeholder = container.querySelector('#qr-placeholder');
+  if(!placeholder) return;
+  placeholder.innerHTML = ''; // clear old
+  const qrText = `GatePass No: ${data.gatePassNo}\nDate: ${data.date}\nConsignor: ${data.consignor}\nTotalQty: ${data.totalQty}`;
+  // create QR with qrcodejs
+  new QRCode(placeholder, {
+    text: qrText,
+    width: 110,
+    height: 110,
+    colorDark : "#000000",
+    colorLight : "#ffffff",
+    correctLevel : QRCode.CorrectLevel.H
+  });
 }
 
-/* Export PDF (one A4 with two copies stacked) */
+/* print current form (renders and prints) */
+function printCurrent(){
+  renderCopiesFromForm();
+  setTimeout(()=> window.print(), 400);
+}
+
+/* export PDF (one A4 with two stacked copies) */
 async function exportPDF(){
   renderCopiesFromForm();
-  // render top copy DOM to canvas (full height containing two copies)
   const paper = document.querySelector('.paper');
-  // temporarily ensure watermark visible
-  el('watermark').style.opacity = '0.06';
+  el('paper').style.background = '#ffffff';
   const canvas = await html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-  el('watermark').style.opacity = '';
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  const img = canvas.toDataURL('image/jpeg', 0.95);
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('p','mm','a4');
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  // scale canvas image to fit a4 width
-  pdf.addImage(imgData, 'JPEG', 0, 0, pageW, pageH);
-  const gp = el('metaGpNo').textContent.replace(/\s+/g,'_') || 'GatePass';
+  const w = pdf.internal.pageSize.getWidth(), h = pdf.internal.pageSize.getHeight();
+  pdf.addImage(img, 'JPEG', 0, 0, w, h);
+  const gp = el('metaGpNo').textContent.replaceAll('/','_') || 'GatePass';
   pdf.save(`GatePass_${gp}.pdf`);
 }
 
-/* Print a specific history record (rendered separately) */
-function printFromHistoryRecord(obj){
-  renderCopiesFromData(obj);
-  setTimeout(()=> window.print(), 300);
-}
-
-/* Print from history helper above */
-function printFromHistory(i){
-  printFromHistory(parseInt(i,10));
-}
-
-/* Reset form */
+/* reset form */
 function resetForm(){
   clearRows();
   ['godownManual','vehicleNo','personCarrying','authorityPerson','remarks',
    'issuedName','issuedDesg','issuedDate','issueSecName','issueSecReg','issueSecDate',
-   'receivedName','receivedDesg','receivedDate','recSecName','recSecReg','recSecDate'].forEach(id=>{
-    if(el(id)) el(id).value='';
-  });
+   'receivedName','receivedDesg','receivedDate','recSecName','recSecReg','recSecDate'].forEach(id => { if(el(id)) el(id).value=''; });
   el('genOn').textContent = new Date().toLocaleString();
   renderCopiesFromForm();
 }
 
-/* Utility */
+/* utility */
 function escapeHTML(s=''){ return (''+s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
 
-/* Autofill consignor mapping */
+/* autofill consignor mapping */
 function onConsignorChange(){
   const v = el('godownManual').value.trim();
-  if(!v) return;
   const map = JSON.parse(localStorage.getItem('gwtpl_godown_map')||'{}');
   if(map[v]){ el('consignee').value = map[v].consignee || el('consignee').value; el('authorityPerson').value = map[v].authority || el('authorityPerson').value; }
-}
-
-/* render copies from data object (helper used by history printing) */
-function renderCopiesFromData(data){
-  // convert items units subtotal field for display
-  data.unitSub = Array.isArray(data.items) ? (() => {
-    const s = {};
-    data.items.forEach(it => { s[it.unit] = (s[it.unit]||0) + (parseFloat(it.qty)||0); });
-    return Object.keys(s).map(u => `${u}: ${s[u]}`).join(' | ');
-  })() : '';
-  renderCopiesFromForm(); // ensure current form copies updated
-  // but we explicitly build copies for given data
-  el('copyTop').innerHTML = buildCopyHtml(data);
-  el('copyBottom').innerHTML = buildCopyHtml(data);
-}
-
-/* Open-from-history printing (wrapper) */
-function printFromHistory(i){
-  const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]'); const it = list[i]; if(!it) return;
-  renderCopiesFromData(it);
-  setTimeout(()=> window.print(), 400);
 }
