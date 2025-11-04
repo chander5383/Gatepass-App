@@ -1,8 +1,8 @@
-/* v10.3 script - grouped + QR + Google Sheet integration */
+/* v11 final script - grouped + QR + Google Sheet + print-4 + watermark */
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRQnXv5VJe8Io0QSyNEddGvZazOFU_QVLdrT7tCWoP9D_0kIJKR6pXv68bs_6rMotFug/exec";
 const APPS_EXPECTS_JSON_RESPONSE = true;
 
-document.addEventListener('DOMContentLoaded', () => { boot(); });
+document.addEventListener('DOMContentLoaded', ()=> boot());
 
 /* helpers */
 const el = id => document.getElementById(id);
@@ -11,20 +11,20 @@ const qAll = sel => Array.from(document.querySelectorAll(sel));
 function boot(){
   bind();
   populateDatalist();
-  addRow(); // ensure one item row
+  addRow();
   generateLocalGP();
   el('metaDate').value = new Date().toISOString().slice(0,10);
   el('genOn').textContent = new Date().toLocaleString();
-  renderCopiesFromForm(); // initial render
+  renderPreviewFromForm();
 }
 
-/* binding events */
+/* events */
 function bind(){
   el('btnAddRow').addEventListener('click', addRow);
   el('btnClearRows').addEventListener('click', clearRows);
   el('saveBtn').addEventListener('click', onSave);
-  el('printBtn').addEventListener('click', printCurrent);
-  el('pdfBtn').addEventListener('click', exportPDF);
+  el('printBtn').addEventListener('click', printFourCopies);
+  el('pdfBtn').addEventListener('click', downloadPDFFourCopies);
   el('chkTag').addEventListener('change', toggleColumns);
   el('chkSr').addEventListener('change', toggleColumns);
 
@@ -33,20 +33,18 @@ function bind(){
   el('clearHistory').addEventListener('click', ()=> { localStorage.removeItem('gwtpl_backup'); renderHistory(); });
 
   el('godownManual').addEventListener('change', onConsignorChange);
-
-  // update copies whenever form/input changes
-  qAll('input,select,textarea').forEach(inp => inp.addEventListener('input', ()=> { computeTotal(); renderCopiesFromForm(); }));
-  el('itemsBody').addEventListener('input', ()=> { computeTotal(); renderCopiesFromForm(); });
+  qAll('input,select,textarea').forEach(i => i.addEventListener('input', ()=> { computeTotal(); renderPreviewFromForm(); }));
+  el('itemsBody').addEventListener('input', ()=> { computeTotal(); renderPreviewFromForm(); });
 }
 
-/* datalist from local map */
+/* datalist */
 function populateDatalist(){
   const map = JSON.parse(localStorage.getItem('gwtpl_godown_map')||'{}');
-  const ds = el('recentGodowns'); ds.innerHTML = '';
+  const ds = el('recentGodowns'); ds.innerHTML='';
   Object.keys(map).reverse().forEach(k => { const o=document.createElement('option'); o.value=k; ds.appendChild(o); });
 }
 
-/* Items table */
+/* items */
 let itemCounter = 0;
 function addRow(prefill = {}){
   itemCounter++;
@@ -72,19 +70,19 @@ function addRow(prefill = {}){
     <td class="action-col"><button type="button" class="btn muted rm">Remove</button></td>
   `;
   tbody.appendChild(tr);
-  tr.querySelector('.rm').addEventListener('click', ()=> { tr.remove(); renumber(); computeTotal(); renderCopiesFromForm(); });
-  tr.querySelector('.itm-qty').addEventListener('input', ()=> { computeTotal(); renderCopiesFromForm(); });
-  tr.querySelector('.itm-unit').addEventListener('change', ()=> { computeTotal(); renderCopiesFromForm(); });
-  renumber(); computeTotal(); toggleColumns(); renderCopiesFromForm();
+  tr.querySelector('.rm').addEventListener('click', ()=> { tr.remove(); renumber(); computeTotal(); renderPreviewFromForm(); });
+  tr.querySelector('.itm-qty').addEventListener('input', ()=> { computeTotal(); renderPreviewFromForm(); });
+  tr.querySelector('.itm-unit').addEventListener('change', ()=> { computeTotal(); renderPreviewFromForm(); });
+  renumber(); computeTotal(); toggleColumns(); renderPreviewFromForm();
 }
 function getRowCount(){ return qAll('#itemsBody tr').length; }
 function renumber(){ qAll('#itemsBody tr').forEach((tr,i)=> tr.querySelector('.sr').textContent = i+1); }
-function clearRows(){ el('itemsBody').innerHTML=''; addRow(); computeTotal(); renderCopiesFromForm(); }
+function clearRows(){ el('itemsBody').innerHTML=''; addRow(); computeTotal(); renderPreviewFromForm(); }
 
-/* totals & subtotals */
+/* totals */
 function computeTotal(){
   const qtyEls = qAll('.itm-qty');
-  const total = qtyEls.reduce((s,e) => s + (parseFloat(e.value)||0), 0);
+  const total = qtyEls.reduce((s,e)=> s + (parseFloat(e.value)||0), 0);
   el('totalQty').textContent = total;
   const rows = qAll('#itemsBody tr').map(tr => ({unit: tr.querySelector('.itm-unit').value, qty: parseFloat(tr.querySelector('.itm-qty').value)||0}));
   const subtotal = {};
@@ -93,7 +91,7 @@ function computeTotal(){
   el('unitSubtotals').textContent = parts.length ? 'Subtotals — ' + parts.join(' | ') : '';
 }
 
-/* toggle tag/sr columns */
+/* toggle */
 function toggleColumns(){
   const showTag = el('chkTag').checked;
   const showSr = el('chkSr').checked;
@@ -101,7 +99,7 @@ function toggleColumns(){
   qAll('.itm-sr').forEach(x => x.style.display = showSr ? '' : 'none');
   if(el('thTag')) el('thTag').style.display = showTag ? '' : 'none';
   if(el('thSr')) el('thSr').style.display = showSr ? '' : 'none';
-  renderCopiesFromForm();
+  renderPreviewFromForm();
 }
 
 /* GatePass numbering */
@@ -119,14 +117,14 @@ function incrementLocal(){ let cnt = parseInt(localStorage.getItem('gwtpl_pass')
 
 /* validate */
 function validateForm(){
-  qAll('.error').forEach(e => e.classList.remove('error'));
+  qAll('.error').forEach(e=> e.classList.remove('error'));
   if(!el('godownManual').value.trim()){ el('godownManual').classList.add('error'); el('godownManual').focus(); return false; }
   const rows = qAll('#itemsBody tr').map(tr => ({name: tr.querySelector('.itm-name').value.trim(), qty: tr.querySelector('.itm-qty').value.trim()}));
   if(!rows.some(r => r.name && r.qty && Number(r.qty) > 0)){ alert('Add at least one item with valid qty'); return false; }
   return true;
 }
 
-/* Save to Google Sheet + local backup */
+/* save */
 async function onSave(){
   if(!validateForm()) return;
   const items = qAll('#itemsBody tr').map(tr => ({
@@ -174,7 +172,7 @@ async function onSave(){
     localStorage.setItem('gwtpl_godown_map', JSON.stringify(map));
   }
 
-  // attempt server save
+  // try server
   try{
     const resp = await fetch(APPS_SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     const j = await resp.json().catch(()=>null);
@@ -198,7 +196,7 @@ function saveLocal(data){
   localStorage.setItem('gwtpl_backup', JSON.stringify(arr));
 }
 
-/* history render/open/print */
+/* history */
 function renderHistory(){
   const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]');
   const container = el('historyList'); container.innerHTML='';
@@ -219,7 +217,6 @@ function renderHistory(){
 
 function openFromHistory(i){
   const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]'); const it = list[i]; if(!it) return;
-  // fill form
   el('metaGpNo').textContent = it.gatePassNo || ''; el('metaDate').value = it.date || '';
   el('godownManual').value = it.consignor || ''; el('consignee').value = it.consignee || '';
   el('vehicleNo').value = it.vehicleNo || ''; el('personCarrying').value = it.personCarrying || ''; el('authorityPerson').value = it.authorityPerson || '';
@@ -229,164 +226,16 @@ function openFromHistory(i){
   el('issueSecName').value = it.issueSecName || ''; el('issueSecReg').value = it.issueSecReg || ''; el('issueSecDate').value = it.issueSecDate || '';
   el('receivedName').value = it.receivedName || ''; el('receivedDesg').value = it.receivedDesg || ''; el('receivedDate').value = it.receivedDate || '';
   el('recSecName').value = it.recSecName || ''; el('recSecReg').value = it.recSecReg || ''; el('recSecDate').value = it.recSecDate || '';
-  computeTotal(); renderCopiesFromForm(); el('historyPanel').setAttribute('aria-hidden','true');
+  computeTotal(); renderPreviewFromForm(); el('historyPanel').setAttribute('aria-hidden','true');
 }
 
 function printFromHistory(i){
   const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]'); const it = list[i]; if(!it) return;
-  renderCopiesFromData(it);
+  buildPrintAreaWithFourCopies(it);
   setTimeout(()=> window.print(), 400);
 }
 
-/* render copies (two stacked) from current form */
-function renderCopiesFromForm(){
-  const data = collectFormData();
-  renderCopiesFromData(data);
-}
-
-/* build both copies from data */
-function renderCopiesFromData(data){
-  // compute unitSub for display if missing
-  if(!data.unitSub){
-    data.unitSub = Array.isArray(data.items) ? (() => {
-      const s={}; (data.items||[]).forEach(it => { s[it.unit] = (s[it.unit]||0) + (parseFloat(it.qty)||0); });
-      return Object.keys(s).map(u => `${u}: ${s[u]}`).join(' | ');
-    })() : '';
-  }
-  el('copyTop').innerHTML = buildCopyHtml(data, 'Office Copy');
-  el('copyBottom').innerHTML = buildCopyHtml(data, 'Security Copy');
-
-  // generate QR for both copies
-  generateQRCodeForCopy('copyTop', data);
-  generateQRCodeForCopy('copyBottom', data);
-}
-
-/* build html string for one copy */
-function buildCopyHtml(d, label){
-  const itemsHtml = (d.items||[]).map(r => `
-    <tr>
-      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.sr||'')}</td>
-      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.name||'')}</td>
-      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.tag||'')}</td>
-      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.srno||'')}</td>
-      <td style="border:1px solid #e9f4f9;padding:8px;text-align:center">${escapeHTML(r.qty||'')}</td>
-      <td style="border:1px solid #e9f4f9;padding:8px;text-align:center">${escapeHTML(r.unit||'')}</td>
-      <td style="border:1px solid #e9f4f9;padding:8px">${escapeHTML(r.remarks||'')}</td>
-    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:#666;padding:18px">No items</td></tr>`;
-
-  const header = `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-      <img src="https://gwtpl.co/logo.png" style="width:80px">
-      <div style="flex:1;text-align:center">
-        <div style="font-weight:800;color:#0a4b76;font-size:18px">GLOBUS WAREHOUSING &amp; TRADING PRIVATE LIMITED</div>
-        <div style="font-weight:700;color:#0b4a61;margin-top:4px">ABOHAR</div>
-        <div style="font-weight:800;color:#0b4a61;margin-top:8px">STOCK TRANSFER VOUCHER</div>
-      </div>
-      <div style="width:260px">
-        <div style="font-size:12px;color:#666">${label}</div>
-        <div style="font-size:12px;color:#666;margin-top:4px">Gate Pass No</div>
-        <div style="border:1px solid #222;padding:8px;font-weight:800;background:#fafafa;margin-bottom:6px">${escapeHTML(d.gatePassNo||'')}</div>
-        <div style="display:flex;gap:8px">
-          <div style="flex:1"><div style="font-size:12px;color:#666">Date</div><div style="padding:6px;border:1px solid #e6eef5">${escapeHTML(d.date||'')}</div></div>
-          <div style="flex:1"><div style="font-size:12px;color:#666">Type</div><div style="padding:6px;border:1px solid #e6eef5">${escapeHTML(d.type||'')}</div></div>
-        </div>
-      </div>
-    </div>`;
-
-  const details = `
-    <table style="width:100%;border-collapse:collapse;margin-top:6px">
-      <tr>
-        <td style="width:33%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
-          <div style="font-weight:700;color:#12323b;margin-bottom:6px">Consignor (Godown)</div>
-          <div>${escapeHTML(d.consignor||'')}</div>
-        </td>
-        <td style="width:33%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
-          <div style="font-weight:700;color:#12323b;margin-bottom:6px">Consignee Unit</div>
-          <div>${escapeHTML(d.consignee||'')}</div>
-        </td>
-        <td style="width:34%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
-          <div style="display:flex;gap:8px">
-            <div style="flex:1"><div style="font-weight:700;color:#12323b">Vehicle No</div><div>${escapeHTML(d.vehicleNo||'')}</div></div>
-            <div style="flex:1"><div style="font-weight:700;color:#12323b">Person Carrying</div><div>${escapeHTML(d.personCarrying||'')}</div></div>
-          </div>
-        </td>
-      </tr>
-    </table>`;
-
-  const table = `
-    <table style="width:100%;border-collapse:collapse;margin-top:10px">
-      <thead>
-        <tr style="background:#f7fbfd;color:#12323b;font-weight:800">
-          <th style="padding:8px;border:1px solid #e9f4f9;width:6%">Sr</th>
-          <th style="padding:8px;border:1px solid #e9f4f9;width:44%">Item Description</th>
-          <th style="padding:8px;border:1px solid #e9f4f9;width:12%">Tag No</th>
-          <th style="padding:8px;border:1px solid #e9f4f9;width:10%">Sr No</th>
-          <th style="padding:8px;border:1px solid #e9f4f9;width:8%">Qty</th>
-          <th style="padding:8px;border:1px solid #e9f4f9;width:8%">Unit</th>
-          <th style="padding:8px;border:1px solid #e9f4f9;width:12%">Remarks</th>
-        </tr>
-      </thead>
-      <tbody>${itemsHtml}</tbody>
-      <tfoot>
-        <tr>
-          <td colspan="4" style="text-align:right;border:1px solid #e9f4f9;padding:8px;font-weight:700">Total Qty</td>
-          <td style="border:1px solid #e9f4f9;padding:8px;text-align:center;font-weight:700">${escapeHTML(d.totalQty||'0')}</td>
-          <td colspan="2" style="border:1px solid #e9f4f9;padding:8px"></td>
-        </tr>
-        <tr>
-          <td colspan="7" style="padding:8px;border:1px solid #e9f4f9;color:#12323b">Subtotals — ${escapeHTML(d.unitSub||'')}</td>
-        </tr>
-      </tfoot>
-    </table>`;
-
-  const remarks = `
-    <div style="display:flex;justify-content:space-between;gap:12px;margin-top:12px">
-      <div style="flex:1;border:1px solid #e9f4f9;padding:8px;border-radius:6px">
-        <div style="font-weight:700;color:#12323b;margin-bottom:6px">Remarks</div>
-        <div style="min-height:40px">${escapeHTML(d.remarks||'')}</div>
-      </div>
-      <div style="width:180px;text-align:center">
-        <div style="font-size:12px;color:#666;margin-bottom:8px">Generated on</div>
-        <div style="font-size:12px;color:#333">${escapeHTML(d.generatedAt ? (new Date(d.generatedAt)).toLocaleString() : (new Date()).toLocaleString())}</div>
-        <div id="qr-placeholder" style="margin-top:8px"></div>
-      </div>
-    </div>`;
-
-  const signatures = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-      <div style="border:1px solid #e9f4f9;padding:10px;border-radius:6px">
-        <div style="font-weight:800;color:#0b4a61;margin-bottom:6px">Consignee / Issued By</div>
-        <div>Name: ${escapeHTML(d.issuedName||'')}</div>
-        <div>Designation: ${escapeHTML(d.issuedDesg||'')}</div>
-        <div>Date: ${escapeHTML(d.issuedDate||'')}</div>
-        <div style="margin-top:8px" class="stamp">Stamp &amp; Sign</div>
-        <hr style="margin:10px 0">
-        <div style="font-weight:700">For Security</div>
-        <div>Name: ${escapeHTML(d.issueSecName||'')}</div>
-        <div>Register Sr: ${escapeHTML(d.issueSecReg||'')}</div>
-        <div>Date: ${escapeHTML(d.issueSecDate||'')}</div>
-        <div style="margin-top:8px" class="stamp">Stamp (Security)</div>
-      </div>
-
-      <div style="border:1px solid #e9f4f9;padding:10px;border-radius:6px">
-        <div style="font-weight:800;color:#0b4a61;margin-bottom:6px">Consignor / Received By</div>
-        <div>Name: ${escapeHTML(d.receivedName||'')}</div>
-        <div>Designation: ${escapeHTML(d.receivedDesg||'')}</div>
-        <div>Date: ${escapeHTML(d.receivedDate||'')}</div>
-        <div style="margin-top:8px" class="stamp">Stamp &amp; Sign</div>
-        <hr style="margin:10px 0">
-        <div style="font-weight:700">For Security</div>
-        <div>Name: ${escapeHTML(d.recSecName||'')}</div>
-        <div>Register Sr: ${escapeHTML(d.recSecReg||'')}</div>
-        <div>Date: ${escapeHTML(d.recSecDate||'')}</div>
-        <div style="margin-top:8px" class="stamp">Stamp (Security)</div>
-      </div>
-    </div>`;
-
-  return `<div style="position:relative;z-index:1">${header}${details}${table}${remarks}${signatures}</div>`;
-}
-
-/* collect form data */
+/* preview & build copy */
 function collectFormData(){
   const items = qAll('#itemsBody tr').map(tr => ({
     sr: tr.querySelector('.sr').textContent,
@@ -426,59 +275,296 @@ function collectFormData(){
   };
 }
 
-/* QR generation: create QR inside copy container's qr-placeholder element */
-function generateQRCodeForCopy(copyId, data){
-  const container = el(copyId);
-  if(!container) return;
-  // find the placeholder inside the copy's generated HTML
-  const placeholder = container.querySelector('#qr-placeholder');
-  if(!placeholder) return;
-  placeholder.innerHTML = ''; // clear old
-  const qrText = `GatePass No: ${data.gatePassNo}\nDate: ${data.date}\nConsignor: ${data.consignor}\nTotalQty: ${data.totalQty}`;
-  // create QR with qrcodejs
-  new QRCode(placeholder, {
-    text: qrText,
-    width: 110,
-    height: 110,
-    colorDark : "#000000",
-    colorLight : "#ffffff",
-    correctLevel : QRCode.CorrectLevel.H
+/* Build HTML for one copy (Office/Security label passed) */
+function buildCopyHtml(data, label){
+  // header, details, table, remarks, signature, printed-on
+  const itemsHtml = (data.items||[]).map(r => `
+    <tr>
+      <td style="border:1px solid #e9f4f9;padding:6px">${escapeHTML(r.sr||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:6px">${escapeHTML(r.name||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:6px">${escapeHTML(r.tag||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:6px">${escapeHTML(r.srno||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:6px;text-align:center">${escapeHTML(r.qty||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:6px;text-align:center">${escapeHTML(r.unit||'')}</td>
+      <td style="border:1px solid #e9f4f9;padding:6px">${escapeHTML(r.remarks||'')}</td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:#666;padding:18px">No items</td></tr>`;
+
+  const header = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+      <img src="${escapeHTML(el('logoImg').src)}" style="width:72px">
+      <div style="flex:1;text-align:center">
+        <div style="font-weight:800;color:#0a4b76;font-size:16px">GLOBUS WAREHOUSING &amp; TRADING PRIVATE LIMITED</div>
+        <div style="font-weight:700;color:#0b4a61;margin-top:4px">ABOHAR</div>
+        <div style="font-weight:800;color:#0b4a61;margin-top:6px">STOCK TRANSFER VOUCHER</div>
+      </div>
+      <div style="width:220px">
+        <div style="font-size:12px;color:#666;font-weight:700">${label}</div>
+        <div style="font-size:12px;color:#666;margin-top:6px">Gate Pass No</div>
+        <div style="border:1px solid #222;padding:8px;font-weight:700;background:#fafafa;margin:6px 0">${escapeHTML(data.gatePassNo||'')}</div>
+        <div style="display:flex;gap:6px">
+          <div style="flex:1"><div style="font-size:12px;color:#666">Date</div><div style="padding:6px;border:1px solid #e6eef5">${escapeHTML(data.date||'')}</div></div>
+          <div style="flex:1"><div style="font-size:12px;color:#666">Type</div><div style="padding:6px;border:1px solid #e6eef5">${escapeHTML(data.type||'')}</div></div>
+        </div>
+      </div>
+    </div>`;
+
+  const details = `
+    <table style="width:100%;border-collapse:collapse;margin-top:6px">
+      <tr>
+        <td style="width:33%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
+          <div style="font-weight:700;color:#12323b;margin-bottom:6px">Consignor (Godown)</div>
+          <div>${escapeHTML(data.consignor||'')}</div>
+        </td>
+        <td style="width:33%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
+          <div style="font-weight:700;color:#12323b;margin-bottom:6px">Consignee Unit</div>
+          <div>${escapeHTML(data.consignee||'')}</div>
+        </td>
+        <td style="width:34%;vertical-align:top;padding:8px;border:1px solid #e9f4f9">
+          <div style="display:flex;gap:8px">
+            <div style="flex:1"><div style="font-weight:700;color:#12323b">Vehicle No</div><div>${escapeHTML(data.vehicleNo||'')}</div></div>
+            <div style="flex:1"><div style="font-weight:700;color:#12323b">Person Carrying</div><div>${escapeHTML(data.personCarrying||'')}</div></div>
+          </div>
+        </td>
+      </tr>
+    </table>`;
+
+  const table = `
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <thead>
+        <tr style="background:#f7fbfd;color:#12323b;font-weight:800">
+          <th style="padding:6px;border:1px solid #e9f4f9;width:6%">Sr</th>
+          <th style="padding:6px;border:1px solid #e9f4f9;width:44%">Item Description</th>
+          <th style="padding:6px;border:1px solid #e9f4f9;width:12%">Tag No</th>
+          <th style="padding:6px;border:1px solid #e9f4f9;width:10%">Sr No</th>
+          <th style="padding:6px;border:1px solid #e9f4f9;width:8%">Qty</th>
+          <th style="padding:6px;border:1px solid #e9f4f9;width:8%">Unit</th>
+          <th style="padding:6px;border:1px solid #e9f4f9;width:12%">Remarks</th>
+        </tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" style="text-align:right;border:1px solid #e9f4f9;padding:8px;font-weight:700">Total Qty</td>
+          <td style="border:1px solid #e9f4f9;padding:8px;text-align:center;font-weight:700">${escapeHTML(data.totalQty||'0')}</td>
+          <td colspan="2" style="border:1px solid #e9f4f9;padding:8px"></td>
+        </tr>
+        <tr>
+          <td colspan="7" style="padding:8px;border:1px solid #e9f4f9;color:#12323b">Subtotals — ${escapeHTML(data.unitSub||'')}</td>
+        </tr>
+      </tfoot>
+    </table>`;
+
+  const remarks = `
+    <div style="display:flex;justify-content:space-between;gap:12px;margin-top:12px">
+      <div style="flex:1;border:1px solid #e9f4f9;padding:8px;border-radius:6px">
+        <div style="font-weight:700;color:#12323b;margin-bottom:6px">Remarks</div>
+        <div style="min-height:40px">${escapeHTML(data.remarks||'')}</div>
+      </div>
+      <div style="width:180px;text-align:center">
+        <div style="font-size:12px;color:#666;margin-bottom:8px">Generated on</div>
+        <div style="font-size:12px;color:#333">${escapeHTML(data.generatedAt ? (new Date(data.generatedAt)).toLocaleString() : (new Date()).toLocaleString())}</div>
+        <div id="qr-placeholder" style="margin-top:8px"></div>
+      </div>
+    </div>`;
+
+  const signatures = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div style="border:1px solid #e9f4f9;padding:10px;border-radius:6px">
+        <div style="font-weight:800;color:#0b4a61;margin-bottom:6px">Consignee / Issued By</div>
+        <div>Name: ${escapeHTML(data.issuedName||'')}</div>
+        <div>Designation: ${escapeHTML(data.issuedDesg||'')}</div>
+        <div>Date: ${escapeHTML(data.issuedDate||'')}</div>
+        <div style="margin-top:8px" class="stamp">Stamp &amp; Sign</div>
+      </div>
+
+      <div style="border:1px solid #e9f4f9;padding:10px;border-radius:6px">
+        <div style="font-weight:800;color:#0b4a61;margin-bottom:6px">Consignor / Received By</div>
+        <div>Name: ${escapeHTML(data.receivedName||'')}</div>
+        <div>Designation: ${escapeHTML(data.receivedDesg||'')}</div>
+        <div>Date: ${escapeHTML(data.receivedDate||'')}</div>
+        <div style="margin-top:8px" class="stamp">Stamp &amp; Sign — Security</div>
+      </div>
+    </div>`;
+
+  const printedOn = `<div style="text-align:right;font-size:11px;color:#666;margin-top:8px">Printed on: ${formatPrintedOn(new Date())}</div>`;
+
+  return `<div style="position:relative;z-index:1;padding-bottom:18px">${header}${details}${table}${remarks}${signatures}${printedOn}</div>`;
+}
+
+/* preview single copy built from form */
+function renderPreviewFromForm(){
+  const data = collectFormData();
+  const html = buildCopyHtml(data, 'Office Copy');
+  el('previewCopy').innerHTML = html;
+  // generate QR for preview container placeholder
+  generateQRCode(el('previewCopy').querySelector('#qr-placeholder'), data);
+}
+
+/* build print container with four copies and show print dialog */
+function buildPrintAreaWithFourCopies(data){
+  // remove old print container if any
+  const old = document.getElementById('printContainer');
+  if(old) old.remove();
+
+  const printContainer = document.createElement('div');
+  printContainer.id = 'printContainer';
+  // set watermark background for print
+  printContainer.style.backgroundImage = `url("${escapeHTML(el('logoImg').src)}")`;
+  printContainer.style.backgroundRepeat = 'no-repeat';
+  printContainer.style.backgroundPosition = 'center';
+  printContainer.style.backgroundSize = '60%';
+  printContainer.style.opacity = '1';
+
+  // Order: Office, Security, Office, Security (4 pages)
+  const labels = ['Office Copy','Security Copy','Office Copy','Security Copy'];
+  labels.forEach(lbl => {
+    const wrapper = document.createElement('div');
+    wrapper.style.width = '210mm';
+    wrapper.style.minHeight = '297mm';
+    wrapper.style.boxSizing = 'border-box';
+    wrapper.style.padding = '12mm';
+    wrapper.style.border = '1px solid var(--page-border)';
+    wrapper.style.background = '#fff';
+    wrapper.style.margin = '0';
+    wrapper.style.pageBreakAfter = 'always';
+    wrapper.innerHTML = buildCopyHtml(data, lbl);
+    // generate QR in this wrapper
+    const ph = wrapper.querySelector('#qr-placeholder');
+    if(ph) generateQRCode(ph, data);
+    // printed-on bottom right inside wrapper
+    const pfoot = document.createElement('div');
+    pfoot.style.position = 'absolute';
+    pfoot.style.right = '12mm';
+    pfoot.style.bottom = '12mm';
+    pfoot.style.fontSize = '11px';
+    pfoot.style.color = '#666';
+    pfoot.textContent = `Printed on: ${formatPrintedOn(new Date())}`;
+    wrapper.style.position = 'relative';
+    wrapper.appendChild(pfoot);
+
+    printContainer.appendChild(wrapper);
   });
+
+  document.body.appendChild(printContainer);
+  return printContainer;
 }
 
-/* print current form (renders and prints) */
-function printCurrent(){
-  renderCopiesFromForm();
-  setTimeout(()=> window.print(), 400);
+/* print handler */
+function printFourCopies(){
+  if(!validateForm()) return;
+  const data = collectFormData();
+  const printArea = buildPrintAreaWithFourCopies(data);
+  // small delay to ensure DOM built
+  setTimeout(()=> {
+    window.print();
+    // cleanup
+    setTimeout(()=> { printArea.remove(); }, 800);
+  }, 400);
 }
 
-/* export PDF (one A4 with two stacked copies) */
-async function exportPDF(){
-  renderCopiesFromForm();
-  const paper = document.querySelector('.paper');
-  el('paper').style.background = '#ffffff';
-  const canvas = await html2canvas(paper, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-  const img = canvas.toDataURL('image/jpeg', 0.95);
+/* PDF creation: canvas slicing to pages */
+async function downloadPDFFourCopies(){
+  if(!validateForm()) return;
+  const data = collectFormData();
+  const printArea = buildPrintAreaWithFourCopies(data);
+
+  // use html2canvas to render full printArea
+  const canv = await html2canvas(printArea, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+  // remove temp print area
+  printArea.remove();
+
+  const img = canv.toDataURL('image/jpeg', 0.95);
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('p','mm','a4');
-  const w = pdf.internal.pageSize.getWidth(), h = pdf.internal.pageSize.getHeight();
-  pdf.addImage(img, 'JPEG', 0, 0, w, h);
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  // convert canvas px to mm ratio
+  const pxPerMm = canv.width / (pageWidth * (96/25.4)); // approximation
+  // We'll slice canvas by height equivalent to one A4 page height in px
+  const a4PxHeight = Math.round(canv.height / (canv.height / (pageHeight * (96/25.4)))); // better approach below
+
+  // easier: compute scale to fit page width
+  const imgProps = { width: canv.width, height: canv.height };
+  const pdfImgWidth = pageWidth;
+  const pdfImgHeight = (imgProps.height * pageWidth) / imgProps.width;
+
+  // If img height <= pageHeight -> single page, else split
+  if(pdfImgHeight <= pageHeight + 1){
+    pdf.addImage(img, 'JPEG', 0, 0, pdfImgWidth, pdfImgHeight);
+  } else {
+    // slice vertically
+    const canvasW = canv.width;
+    const canvasH = canv.height;
+    // px height per pdf page
+    const pxPerPage = Math.floor(canvasW * (pageHeight / pageWidth));
+    let y = 0;
+    while(y < canvasH){
+      const sliceH = Math.min(pxPerPage, canvasH - y);
+      const tmp = document.createElement('canvas');
+      tmp.width = canvasW;
+      tmp.height = sliceH;
+      const ctx = tmp.getContext('2d');
+      ctx.drawImage(canv, 0, y, canvasW, sliceH, 0, 0, canvasW, sliceH);
+      const dataUrl = tmp.toDataURL('image/jpeg', 0.95);
+      const hInPdf = (sliceH * pdfImgWidth) / canvasW;
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfImgWidth, hInPdf);
+      y += sliceH;
+      if(y < canvasH) pdf.addPage();
+    }
+  }
+
   const gp = el('metaGpNo').textContent.replaceAll('/','_') || 'GatePass';
   pdf.save(`GatePass_${gp}.pdf`);
 }
 
-/* reset form */
+/* history print wrapper */
+function printFromHistory(i){
+  const list = JSON.parse(localStorage.getItem('gwtpl_backup')||'[]'); const it = list[i]; if(!it) return;
+  buildPrintAreaWithFourCopies(it);
+  setTimeout(()=> window.print(), 400);
+}
+
+/* generate QR using qrcodejs into a placeholder element */
+function generateQRCode(targetEl, data){
+  if(!targetEl) return;
+  targetEl.innerHTML = '';
+  const qrText = `GatePass No: ${data.gatePassNo}\nDate: ${data.date}\nConsignor: ${data.consignor}\nTotalQty: ${data.totalQty}`;
+  try{
+    new QRCode(targetEl, {
+      text: qrText,
+      width: 110,
+      height: 110,
+      colorDark : "#000000",
+      colorLight : "#ffffff",
+      correctLevel : QRCode.CorrectLevel.H
+    });
+  }catch(e){
+    console.warn('QR fail', e);
+  }
+}
+
+/* reset */
 function resetForm(){
   clearRows();
   ['godownManual','vehicleNo','personCarrying','authorityPerson','remarks',
    'issuedName','issuedDesg','issuedDate','issueSecName','issueSecReg','issueSecDate',
-   'receivedName','receivedDesg','receivedDate','recSecName','recSecReg','recSecDate'].forEach(id => { if(el(id)) el(id).value=''; });
+   'receivedName','receivedDesg','receivedDate','recSecName','recSecReg','recSecDate'].forEach(id=>{ if(el(id)) el(id).value=''; });
   el('genOn').textContent = new Date().toLocaleString();
-  renderCopiesFromForm();
+  renderPreviewFromForm();
 }
 
-/* utility */
+/* utilities */
 function escapeHTML(s=''){ return (''+s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+function formatPrintedOn(d){
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  let hrs = d.getHours(), mins = String(d.getMinutes()).padStart(2,'0');
+  const ampm = hrs>=12?'PM':'AM';
+  hrs = hrs % 12; hrs = hrs ? hrs : 12;
+  return `${dd}-${mm}-${yyyy} | ${hrs}:${mins} ${ampm}`;
+}
 
 /* autofill consignor mapping */
 function onConsignorChange(){
