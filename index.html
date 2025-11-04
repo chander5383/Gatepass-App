@@ -1,105 +1,163 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GWTPL Gate Pass</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GWTPL Gate Pass (v3)</title>
+
+  <!-- QR lib -->
+  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
+  <!-- html2pdf for PDF download -->
+  <script src="https://raw.githack.com/eKoopmans/html2pdf/master/dist/html2pdf.bundle.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="logo"><img src="https://gwtpl.co/logo.png" alt="GWTPL Logo"></div>
-      <div class="header-text">
-        <h1>GLOBUS WAREHOUSING & TRADING PRIVATE LIMITED</h1>
-        <h3>ABOHAR</h3>
-        <h2 id="voucherType">STOCK TRANSFER VOUCHER</h2>
-      </div>
-    </header>
+  <div class="page-wrap">
+    <div id="gatepass" class="gatepass">
 
-    <section class="info">
-      <div class="left">
-        <label>Gate Pass No:</label>
-        <input type="text" id="gatePassNo" readonly>
-      </div>
-      <div class="right">
-        <label>Date:</label>
-        <input type="date" id="date">
-      </div>
-    </section>
+      <!-- Header -->
+      <header class="gp-header">
+        <div class="logo-left"><img src="https://gwtpl.co/logo.png" alt="GWTPL Logo" /></div>
 
-    <section class="transfer">
-      <div class="row">
-        <label>Category:</label>
-        <select id="category" onchange="changeVoucherType()">
-          <option>STOCK TRANSFER VOUCHER</option>
-          <option>STOCK VOUCHER (RETURNABLE STOCK)</option>
-        </select>
-      </div>
-      <div class="row">
-        <label>Consignor Unit:</label>
-        <input type="text" id="consignor">
-      </div>
-      <div class="row">
-        <label>Consignee Unit:</label>
-        <input type="text" id="consignee" value="GWTPL ABOHAR" readonly>
-      </div>
-      <div class="row">
-        <label>Issued By:</label>
-        <input type="text" id="issuedBy">
-      </div>
-      <div class="row">
-        <label>Designation:</label>
-        <input type="text" id="designation">
-      </div>
-      <div class="row">
-        <label>Vehicle No:</label>
-        <input type="text" id="vehicleNo">
-      </div>
-      <div class="row">
-        <label>Person Carrying Material:</label>
-        <input type="text" id="person">
-      </div>
-      <div class="row">
-        <label>Remarks:</label>
-        <textarea id="remarks" rows="2"></textarea>
-      </div>
-    </section>
+        <div class="gp-title">
+          <div class="company">GLOBUS WAREHOUSING &amp; TRADING PRIVATE LIMITED</div>
+          <div class="place">ABOHAR</div>
+        </div>
 
-    <section class="items">
-      <h3>Item Details</h3>
-      <table id="itemTable">
-        <thead>
-          <tr>
-            <th>Sr No</th>
-            <th>Item Name</th>
-            <th>Qty</th>
-            <th>Unit</th>
-            <th>Serial No</th>
-            <th>Tag No</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <button onclick="addItem()">+ Add Item</button>
-    </section>
+        <div class="gp-meta">
+          <div class="meta-row"><label>Gate Pass No</label><div id="gpNo" class="meta-box"></div></div>
+          <div class="meta-row"><label>Date & Time</label><input id="gpDate" type="datetime-local" /></div>
+          <div class="meta-row"><label>Type</label>
+            <select id="gpType">
+              <option>STOCK TRANSFER VOUCHER</option>
+              <option>STOCK VOUCHER (RETURNABLE STOCK)</option>
+              <option>RETURN</option>
+              <option>TRANSFER</option>
+            </select>
+          </div>
+        </div>
+      </header>
 
-    <section class="security">
-      <h3>Security Verification Section</h3>
-      <label>Outward Register Sr. No:</label>
-      <input type="text" id="outwardNo"><br>
-      <label>Date:</label>
-      <input type="date" id="outwardDate"><br>
-      <label>Security Name:</label>
-      <input type="text" id="securityName"><br><br>
-      <div class="sign">Sign & Stamp</div>
-    </section>
+      <!-- Transfer details -->
+      <section class="section details">
+        <div class="col">
+          <label>Cluster</label>
+          <select id="cluster"></select>
+        </div>
+        <div class="col">
+          <label>District</label>
+          <select id="district"></select>
+        </div>
+        <div class="col">
+          <label>Location</label>
+          <select id="location"></select>
+        </div>
+        <div class="col">
+          <label>Consignor (Godown)</label>
+          <select id="godown"></select>
+          <input id="godownOther" placeholder="Enter other godown name" style="display:none;margin-top:6px;" />
+        </div>
 
-    <div class="buttons">
-      <button onclick="saveData()">Save</button>
-      <button onclick="window.print()">Print</button>
-    </div>
-  </div>
+        <div class="col">
+          <label>Consignee Unit</label>
+          <input id="consignee" value="GWTPL ABOHAR" readonly />
+        </div>
+        <div class="col">
+          <label>Vehicle No</label>
+          <input id="vehicleNo" placeholder="Vehicle No" />
+        </div>
+        <div class="col">
+          <label>Driver / Person</label>
+          <input id="personName" placeholder="Name of person carrying" />
+        </div>
+        <div class="col">
+          <label>Reference No (optional)</label>
+          <input id="refNo" placeholder="PO / DO / Requisition (optional)" />
+        </div>
+      </section>
+
+      <!-- Items table -->
+      <section class="section items-section">
+        <div class="items-header">
+          <h3>Item Details</h3>
+          <div class="items-actions">
+            <button id="addRow" type="button">+ Add Item</button>
+            <button id="clearItems" type="button" class="secondary">Clear Items</button>
+          </div>
+        </div>
+
+        <table id="itemsTable" class="items-table">
+          <thead>
+            <tr>
+              <th style="width:6%;">Sr</th>
+              <th style="width:44%;">Item Description</th>
+              <th style="width:12%;">Qty</th>
+              <th style="width:10%;">Unit</th>
+              <th style="width:14%;">Remarks</th>
+              <th style="width:14%;">Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" style="text-align:right;font-weight:700;">Total Qty</td>
+              <td id="totalQty" style="text-align:center;font-weight:700;">0</td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
+
+      <!-- Remarks -->
+      <section class="section remarks">
+        <label>General Remarks</label>
+        <textarea id="generalRemarks" rows="2" placeholder="Anything to note..."></textarea>
+      </section>
+
+      <!-- QR and small info -->
+      <section class="section qr-row">
+        <div id="qr" class="qr-box"></div>
+        <div class="small-info">
+          <div id="genStamp">Generated on: <span id="genTime"></span></div>
+          <div>Verification QR (scan to check)</div>
+        </div>
+      </section>
+
+      <!-- Dotted cut line -->
+      <div class="cut-line"><span>--- Security Copy / Office Copy ---</span></div>
+
+      <!-- Signatures: Outward (left) and Inward (right) -->
+      <section class="section sign-row">
+        <div class="sign-col">
+          <div class="sign-title">OUTWARD (Issued By)</div>
+          <label>Name</label><input id="issueName" placeholder="Issuer name" />
+          <label>Designation</label><input id="issueDesg" placeholder="Designation" />
+          <label>Date & Time</label><input id="issueDt" type="datetime-local" />
+          <div class="stamp-box">Stamp</div>
+          <div class="sign-line">Signature: ________________________</div>
+        </div>
+
+        <div class="sign-col">
+          <div class="sign-title">INWARD (Receiving / Security)</div>
+          <label>Outward Reg. Sr No</label><input id="outwardRegNo" placeholder="Outward register sr no" />
+          <label>Date</label><input id="inwardDate" type="date" />
+          <label>Security Name</label><input id="securityName" placeholder="Security name" />
+          <label>Time</label><input id="securityTime" type="time" />
+          <div class="stamp-box">Stamp</div>
+          <div class="sign-line">Signature: ________________________</div>
+        </div>
+      </section>
+
+      <!-- Buttons -->
+      <section class="section actions-row">
+        <button id="saveBtn">Save & New</button>
+        <button id="printBtn">Print</button>
+        <button id="pdfBtn">Download PDF</button>
+      </section>
+
+    </div> <!-- /gatepass -->
+  </div> <!-- /page-wrap -->
 
   <script src="script.js"></script>
 </body>
