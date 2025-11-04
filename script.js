@@ -1,94 +1,95 @@
-// == CONFIG ==
-const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAXIhKxmeBkMhAPVh24PSbTcfSh-1oBEXBj7OFEnAXx-Uy_PzmL7UZkql3rUUpmHeJRQz5oXCzp8Cy/pub?output=csv";
 const appsScriptUrl = "https://script.google.com/macros/s/AKfycbzNTGVczqgRCHVG0-ahE8xytNhCMJWubAu3blkIj25sJ7lATtTQi4l2pAqB-XsizWlaXQ/exec";
 
-// == AUTO GATEPASS ==
-let passCount = localStorage.getItem('gatepassCount') || 1;
-const gatePassNo = document.getElementById('gatePassNo');
-gatePassNo.value = `GWTPL/ABO/2025/${String(passCount).padStart(3, '0')}`;
+let itemCount = 0;
 
-// == FETCH SHEET DATA ==
-async function loadSheet() {
-  const res = await fetch(sheetUrl);
-  const text = await res.text();
-  const rows = text.split("\n").map(r => r.split(","));
-  const clusterSet = [...new Set(rows.slice(1).map(r => r[0]))];
-  const clusterSelect = document.getElementById('cluster');
-  const godownSelect = document.getElementById('godown');
-  const locationInput = document.getElementById('location');
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("addItemBtn").addEventListener("click", addItemRow);
+  document.getElementById("generateBtn").addEventListener("click", generateGatePass);
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
+  document.getElementById("resetBtn").addEventListener("click", () => location.reload());
 
-  clusterSet.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = opt.textContent = c.trim();
-    clusterSelect.appendChild(opt);
-  });
+  // Add first item row
+  addItemRow();
 
-  clusterSelect.addEventListener('change', () => {
-    const val = clusterSelect.value;
-    const filtered = rows.filter(r => r[0] === val);
-    godownSelect.innerHTML = "";
-    filtered.forEach(r => {
-      const opt = document.createElement("option");
-      opt.value = opt.textContent = r[4];
-      godownSelect.appendChild(opt);
-    });
-    locationInput.value = filtered[0][3];
-  });
-}
-loadSheet();
-
-// == ADD ITEMS ==
-let itemNo = 1;
-document.getElementById('addItem').addEventListener('click', () => {
-  const tbody = document.getElementById('itemBody');
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td>${itemNo++}</td>
-    <td><input type="text" class="iname"></td>
-    <td><input type="number" class="iqty"></td>
-    <td><input type="text" class="itag"></td>
-    <td><input type="checkbox" class="returnable"></td>
-  `;
-  tbody.appendChild(tr);
+  // Load clusters/godowns
+  loadConsignorUnits();
 });
 
-// == SAVE TO SHEET ==
-document.getElementById('saveBtn').addEventListener('click', async () => {
+function addItemRow() {
+  itemCount++;
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td>${itemCount}</td>
+    <td><input type="text" placeholder="Item Name"></td>
+    <td><input type="number" min="1" value="1"></td>
+    <td><input type="text" placeholder="Serial No"></td>
+    <td><input type="text" placeholder="Tag No"></td>
+  `;
+  document.getElementById("itemRows").appendChild(row);
+}
+
+function generateGatePass() {
+  const gatePassNo = document.getElementById("gatePassNumber").textContent.replace("Gate Pass No: ", "");
+  const date = document.getElementById("dateField").value;
+  const consignor = document.getElementById("consignorUnit").value;
+  const vehicleNo = document.getElementById("vehicleNo").value;
+  const carriedBy = document.getElementById("carriedBy").value;
+  const remarks = document.getElementById("remarks").value;
+  const issuedBy = document.getElementById("issuedBy").value;
+  const designation = document.getElementById("designation").value;
+
+  const items = [];
+  document.querySelectorAll("#itemRows tr").forEach(tr => {
+    const cells = tr.querySelectorAll("input");
+    items.push({
+      item: cells[0].value,
+      qty: cells[1].value,
+      serial: cells[2].value,
+      tag: cells[3].value
+    });
+  });
+
   const data = {
-    passNo: gatePassNo.value,
-    date: document.getElementById('date').value,
-    cluster: document.getElementById('cluster').value,
-    godown: document.getElementById('godown').value,
-    location: document.getElementById('location').value,
-    vehicleNo: document.getElementById('vehicleNo').value,
-    authority: document.getElementById('authority').value,
-    issuedBy: document.getElementById('issuedBy').value,
-    designation: document.getElementById('designation').value,
-    items: []
+    gatePassNo,
+    date,
+    consignor,
+    vehicleNo,
+    carriedBy,
+    remarks,
+    issuedBy,
+    designation,
+    items
   };
 
-  document.querySelectorAll('#itemBody tr').forEach(tr => {
-    data.items.push({
-      name: tr.querySelector('.iname').value,
-      qty: tr.querySelector('.iqty').value,
-      tag: tr.querySelector('.itag').value,
-      returnable: tr.querySelector('.returnable').checked
-    });
-  });
-
-  await fetch(appsScriptUrl, {
+  // Send to Google Sheet
+  fetch(appsScriptUrl, {
     method: "POST",
-    mode: "no-cors",
     body: JSON.stringify(data)
+  })
+  .then(res => alert("✅ Data Saved to Google Sheet Successfully!"))
+  .catch(err => alert("❌ Error saving data: " + err));
+
+  // QR code generate
+  const qrDiv = document.getElementById("qrCode");
+  qrDiv.innerHTML = "";
+  new QRCode(qrDiv, {
+    text: gatePassNo,
+    width: 100,
+    height: 100
   });
 
-  alert("✅ Gate pass saved!");
-  passCount++;
-  localStorage.setItem('gatepassCount', passCount);
-  gatePassNo.value = `GWTPL/ABO/2025/${String(passCount).padStart(3, '0')}`;
-});
+  // Timestamp
+  const ts = new Date().toLocaleString();
+  document.getElementById("timestamp").textContent = "Printed on: " + ts;
+}
 
-// == PRINT ==
-document.getElementById('printBtn').addEventListener('click', () => {
-  window.print();
-});
+function loadConsignorUnits() {
+  const consignorList = ["Cluster-1 Godown", "Cluster-2 Godown", "Cluster-3 Godown"];
+  const select = document.getElementById("consignorUnit");
+  consignorList.forEach(g => {
+    const opt = document.createElement("option");
+    opt.value = g;
+    opt.textContent = g;
+    select.appendChild(opt);
+  });
+}
