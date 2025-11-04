@@ -1,74 +1,108 @@
 body {
-  font-family: 'Segoe UI', sans-serif;
-  background: #f4f6f8;
-  color: #222;
-  display: flex;
-  justify-content: center;
-  padding: 20px;
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background: #f8f9fa;
 }
 
 .container {
-  background: white url("https://gwtpl.co/logo.png") no-repeat center;
-  background-size: 300px;
-  width: 900px;
-  padding: 30px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  width: 21cm;
+  min-height: 29.7cm;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  box-shadow: 0 0 10px #ccc;
+  position: relative;
 }
 
 header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-.logo {
-  height: 70px;
-}
-h1 {
-  font-size: 20px;
-  margin: 5px 0;
-}
-h2 {
-  font-size: 18px;
-  text-decoration: underline;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid black;
+  padding-bottom: 10px;
 }
 
-.section {
-  display: flex;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
+.logo img {
+  width: 90px;
+  height: auto;
 }
-.section label {
-  width: 150px;
+
+.header-text {
+  flex: 1;
+  text-align: center;
+}
+
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 18px; margin: 0; }
+h3 { margin: 5px 0; }
+
+.info, .transfer, .items, .security {
+  margin-top: 15px;
+  border: 1px solid #000;
+  padding: 10px;
+}
+
+.info .left, .info .right {
+  display: inline-block;
+  width: 48%;
+}
+
+label {
   font-weight: bold;
 }
-.section input, .section select {
-  flex: 1;
-  margin-bottom: 5px;
+
+input, select, textarea {
+  width: 60%;
+  margin: 5px;
+}
+
+.items table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.items th, .items td {
+  border: 1px solid #000;
+  text-align: center;
   padding: 5px;
 }
 
-.btn-section {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 15px;
+.buttons {
+  margin-top: 20px;
+  text-align: center;
 }
-button {
-  padding: 8px 15px;
-  border: none;
-  cursor: pointer;
-  border-radius: 4px;
-}
-#saveBtn { background: #007bff; color: white; }
-#printBtn { background: #28a745; color: white; }
 
-#items {
-  width: 100%;
-  margin-bottom: 5px;
+button {
+  padding: 8px 16px;
+  margin: 5px;
+  background-color: #0056b3;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
 }
-.itemRow {
-  display: flex;
-  gap: 5px;
-  margin-bottom: 4px;
+
+button:hover {
+  background-color: #003d82;
 }
-.itemRow input {
-  flex: 1;
+
+/* Background logo only visible in print */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+  }
+  .container::before {
+    content: "";
+    background: url('https://gwtpl.co/logo.png') center center no-repeat;
+    background-size: 50%;
+    opacity: 0.08;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 0;
+  }
+  input, select, textarea, button {
+    border: none;
+  }
+  .buttons {
+    display: none;
+  }
 }
