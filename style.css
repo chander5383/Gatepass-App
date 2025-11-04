@@ -1,4 +1,4 @@
-/* v10.3 grouped + QR final */
+/* v11 final grouped + print-4 + watermark */
 @page { size: A4; margin: 12mm; }
 :root{
   --brand:#0a4b76;
@@ -9,6 +9,7 @@
   --radius:8px;
   --stamp-size:3cm;
   --font: "Inter", "Segoe UI", Arial, sans-serif;
+  --page-border:#d6eaf1;
 }
 *{box-sizing:border-box}
 body{font-family:var(--font);background:var(--bg);margin:0;color:#132}
@@ -21,26 +22,43 @@ body{font-family:var(--font);background:var(--bg);margin:0;color:#132}
 .btn.muted{background:#f1f5f8}
 
 /* layout */
-.layout{display:flex;gap:16px;padding:18px}
+.layout{display:flex;gap:16px;padding:18px;align-items:flex-start}
 .history-panel{width:340px;background:#fff;border:1px solid #e9f3f8;padding:12px;border-radius:8px;display:none}
 .history-panel[aria-hidden="false"]{display:block}
 .history-panel h3{margin:0 0 8px 0;color:var(--brand)}
 .hist-controls{display:flex;gap:8px;margin-bottom:8px}
 .hist-controls input{flex:1;padding:6px;border:1px solid #e9f3f8;border-radius:6px}
 
-/* paper & copies */
-.paper-wrap{flex:1;display:flex;flex-direction:column;align-items:center}
-.paper{width:210mm;max-width:100%;padding:0}
-.copy{width:100%;background:var(--card);border:1px solid #e6eef5;padding:12mm;margin-bottom:12mm;box-shadow:0 8px 36px rgba(4,18,28,0.04);position:relative;min-height:260px}
-.copy .stamp{border-style:dashed}
-.watermark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:50%;height:50%;background-image:url('https://gwtpl.co/logo.png');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.06;pointer-events:none;z-index:0}
+/* preview single page */
+.preview-wrap{flex:1;display:flex;justify-content:center}
+.preview-copy{width:210mm;max-width:100%;min-height:297mm;background:var(--card);border:1px solid var(--page-border);padding:12mm;margin-bottom:10mm;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.04)}
+.preview-copy .top-label{position:absolute;left:12mm;top:6mm;font-weight:700;color:#666}
+.preview-copy .copy-title{position:absolute;right:12mm;top:6mm;padding:6px 10px;border-radius:6px;background:#fff;border:1px solid #e6eef5;font-weight:700;color:#123}
 
-/* box and sections */
+/* watermark background for print (also visible faint in preview) */
+.preview-copy::before{
+  content: "";
+  position:absolute;
+  left:50%; top:50%;
+  transform:translate(-50%,-50%);
+  width:60%;
+  height:60%;
+  background-image:url('https://gwtpl.co/logo.png');
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:contain;
+  opacity:0.06;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* editor form area on right */
+.editor{width:420px;display:flex;flex-direction:column;gap:12px}
 .box{background:var(--card);border-radius:8px;padding:12px;border:1px solid #e8f3f7;margin-bottom:12px}
 .section{padding:12px;border-radius:8px}
 .section-title{font-weight:800;color:var(--brand);margin-bottom:10px;border-bottom:2px solid rgba(10,75,118,0.06);padding-bottom:6px}
 
-/* header */
+/* header inside editor */
 .header-box{display:flex;align-items:center;gap:12px}
 .logo{width:86px}
 .header-center{flex:1;text-align:center}
@@ -48,9 +66,9 @@ body{font-family:var(--font);background:var(--bg);margin:0;color:#132}
 .place{font-weight:700;margin-top:4px;color:#0b4a61}
 .voucher{margin-top:8px;font-weight:800;letter-spacing:0.6px;color:#0b4a61}
 .header-meta{width:260px;display:flex;flex-direction:column;gap:6px}
-.gpbox{border:1px solid #222;padding:8px;background:#fafafa;font-weight:800;letter-spacing:0.6px}
+.gpbox{border:1px solid #222;padding:8px;background:#fafafa;font-weight:800;letter-spacing:0.6px;text-align:center}
 
-/* details */
+/* form fields */
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .field label{font-weight:700;font-size:13px;color:#12323b}
 input,select,textarea{font-size:13px;padding:8px;border:1px solid #e6eef5;border-radius:6px;background:#fff}
@@ -71,29 +89,26 @@ input[readonly]{background:#f7fbfd}
 .qr-block{width:200px;text-align:center}
 .qrbox{width:140px;height:140px;border:1px solid #eef5fa;display:flex;align-items:center;justify-content:center;background:#fff;margin:8px auto}
 
-/* signatures */
+/* signature */
 .sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
 .col-title{font-weight:800;color:#0b4a61;margin-bottom:6px}
 .stamp{width:var(--stamp-size);height:var(--stamp-size);border:2px dashed #9fb7c6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#6b7f86;margin-top:8px}
 
-/* small helpers */
-.text-right{text-align:right}
-.text-center{text-align:center}
-.subtotals{font-size:13px;color:#12323b;padding:8px}
-.hidden{display:none}
-.error{border-color:#e1584e!important;box-shadow:0 0 0 4px rgba(225,88,78,0.06)}
+/* printed-on footer text area (for print copies) */
+.printed-on{position:absolute;right:12mm;bottom:8mm;font-size:11px;color:#666;}
 
-/* print rules */
+/* print rules: build the print container dynamically via JS */
 @media print{
-  body{background:#fff}
-  .topbar,.history-panel,.editor{display:none}
-  .copy{box-shadow:none;margin:0;padding:10mm;border:none}
-  .watermark{opacity:0.06}
+  body *{visibility:hidden}
+  #printContainer, #printContainer *{visibility:visible}
+  #printContainer{position:fixed;left:0;top:0;width:100%}
 }
 
 /* responsive */
-@media (max-width:920px){
+@media (max-width:1100px){
+  .layout{flex-direction:column;align-items:center}
+  .editor{width:100%}
+  .preview-copy{width:95%;min-height:auto}
   .grid-3{grid-template-columns:repeat(2,1fr)}
-  .sign-grid{grid-template-columns:1fr}
-  .remarks-qr{flex-direction:column}
+  .history-panel{width:100%}
 }
