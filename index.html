@@ -1,28 +1,26 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GWTPL Gate Pass (v15.5)</title>
+  <title>GWTPL Gate Pass (v17)</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="page-wrap">
+  <div class="page-wrap" id="appRoot">
     <header class="topbar">
-      <div class="logo-wrap">
-        <img src="https://gwtpl.co/logo.png" alt="GWTPL Logo" id="mainLogo">
-      </div>
+      <div class="logo-wrap"><img src="https://gwtpl.co/logo.png" id="mainLogo" alt="GWTPL"></div>
       <div class="title-wrap">
-        <div class="company">GLOBUS WAREHOUSING & TRADING PRIVATE LIMITED</div>
+        <div class="company">GLOBUS WAREHOUSING & TRADING PVT. LTD.</div>
         <div class="location">ABOHAR</div>
         <div class="doc-title" id="docTitle">STOCK TRANSFER VOUCHER</div>
       </div>
       <div class="meta-wrap">
         <label>Gate Pass No</label>
-        <input id="gpNo" value="GWPTL/ABOHAR/2025/001" />
-        <label style="margin-top:8px">Date</label>
-        <input id="gpDate" type="date" />
-        <label style="margin-top:8px">Type</label>
+        <input id="gpNo" placeholder="Auto / manual">
+        <label>Date</label>
+        <input id="gpDate" type="date">
+        <label>Type</label>
         <select id="gpType">
           <option>Stock Transfer Voucher</option>
           <option>Stock Transfer Voucher Returnable</option>
@@ -31,21 +29,12 @@
     </header>
 
     <main class="content">
-      <!-- CONSIGNOR/CONSIGNEE -->
+      <!-- Consignee / Issued By (above) -->
       <section class="card grid-3">
-        <div>
-          <label>Consignor (Godown)</label>
-          <input id="consignor" placeholder="Enter godown name (manual)">
-        </div>
         <div>
           <label>Consignee Unit</label>
           <input id="consignee" value="GWPTL Abohar">
         </div>
-        <div>
-          <label>Vehicle No</label>
-          <input id="vehicle" placeholder="Vehicle No">
-        </div>
-
         <div>
           <label>Person Carrying</label>
           <input id="person" placeholder="Name">
@@ -54,18 +43,13 @@
           <label>Authority Person</label>
           <input id="authority" value="Sh.">
         </div>
-        <div>
-          <label>Consignor/Received By - Date (manual)</label>
-          <input id="consignDate" type="date" />
-        </div>
       </section>
 
-      <!-- ITEM DETAILS -->
+      <!-- Items -->
       <section class="card">
         <div class="section-header">
           <h3>Item Details</h3>
           <div class="controls">
-            <!-- Tag/Sr above action buttons (space efficient) -->
             <label><input type="checkbox" id="showTag" onchange="toggleCols()"> Tag No</label>
             <label><input type="checkbox" id="showSr" onchange="toggleCols()"> Sr No</label>
             <button class="btn" onclick="addRow()">+ Add Item</button>
@@ -101,40 +85,31 @@
         <div id="unitSubtotal" class="unit-subtotals" aria-live="polite"></div>
       </section>
 
-      <!-- REMARKS AND NOTE -->
       <section class="card">
         <label>Remarks</label>
         <textarea id="remarks" rows="3" placeholder="Any remarks..."></textarea>
         <div class="goods-note">Goods are not for sale — only site to site transfer</div>
       </section>
 
-      <!-- ISSUED / RECEIVED grouped layout -->
+      <!-- Issued (above) & Received (below) as requested -->
       <section class="card group-grid">
         <div class="group">
           <h4>Consignee / Issued by</h4>
           <div class="subgrid">
-            <div>
-              <label>For Security — Date</label>
-              <input id="issuedSecurityDate" type="date">
-              <label>Outward Register Sr No</label>
-              <input id="outwardSr">
-            </div>
             <div>
               <label>For Authorised Person — Name</label>
               <input id="issuedName">
               <label>Designation</label>
               <input id="issuedDesig">
             </div>
+            <div>
+              <label>Outward Register Sr No</label>
+              <input id="outwardSr">
+            </div>
           </div>
           <div class="sign-row">
-            <div class="sign-box">
-              <img src="https://gwtpl.co/logo.png" alt="stamp" />
-              <div class="sign-label">Stamp and sign</div>
-            </div>
-            <div class="sign-box">
-              <img src="https://gwtpl.co/logo.png" alt="stamp" />
-              <div class="sign-label">Stamp and sign</div>
-            </div>
+            <div class="sign-box"></div>
+            <div class="sign-box"></div>
           </div>
         </div>
 
@@ -142,7 +117,7 @@
           <h4>Consignor / Received by</h4>
           <div class="subgrid">
             <div>
-              <label>For Security — Date</label>
+              <label>For Security — Date (manual)</label>
               <input id="receivedSecurityDate" type="date">
               <label>Inward Register Sr No</label>
               <input id="inwardSr">
@@ -155,36 +130,34 @@
             </div>
           </div>
           <div class="sign-row">
-            <div class="sign-box">
-              <img src="https://gwtpl.co/logo.png" alt="stamp" />
-              <div class="sign-label">Stamp and sign</div>
-            </div>
-            <div class="sign-box">
-              <img src="https://gwtpl.co/logo.png" alt="stamp" />
-              <div class="sign-label">Stamp and sign</div>
-            </div>
+            <div class="sign-box"></div>
+            <div class="sign-box"></div>
           </div>
         </div>
       </section>
 
-      <!-- ACTIONS & DIAGNOSTICS -->
+      <!-- Actions -->
       <section class="card actions-row">
         <div class="left">
           <button class="btn" onclick="saveToSheet()">Save to Google Sheet</button>
           <button class="btn muted" onclick="downloadJSON()">Download JSON</button>
-          <button class="btn muted" onclick="window.print()">Print (A4)</button>
+          <button class="btn muted" onclick="printMultiCopies()">Print (Office + Security)</button>
         </div>
         <div class="right diagnostics">
           <div id="lastStatus">Last save: —</div>
-          <div id="errorLog" class="error-log" aria-live="polite"></div>
+          <div id="errorLog" class="error-log"></div>
         </div>
       </section>
+
     </main>
 
     <footer class="page-footer">
-      <small>Generated by GWTPL GatePass v15.5</small>
+      <small>Generated by GWTPL GatePass v17</small>
     </footer>
   </div>
+
+  <!-- print template container (hidden) -->
+  <div id="printHolder" style="display:none"></div>
 
   <script src="script.js"></script>
 </body>
