@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<!--  V.V.I: Mobile-friendly zoom fix -->
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>GWTPL Gate Pass — Final (v2)</title>
+<title>GWTPL Gate Pass — Final v3</title>
 
-<!-- QRCode.js -->
+<!-- QRCode.js and html2pdf (for PDF download) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<!-- html2pdf script removed -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
 
 <style>
   :root{
@@ -26,16 +25,12 @@
     color:#06203a;
     padding:18px;
   }
-
-  /* Topbar */
   .topbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
   .btn{background:linear-gradient(180deg,#0f6fb4,var(--accent));color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:700;transition:all .18s}
   .btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(11,83,148,.18)}
   .btn.secondary{background:#fff;color:var(--accent);border:1px solid rgba(11,83,148,.12);box-shadow:none}
   .hint{margin-left:auto;color:var(--muted);font-size:13px}
   .small{padding:8px 10px;border-radius:6px;font-weight:700}
-
-  /* preview / paper */
   .preview-wrap{display:flex;justify-content:center}
   .paper{
     width:calc(var(--paper-w));
@@ -49,31 +44,20 @@
     overflow:visible;
   }
   .outer-border{position:absolute;inset:6mm;border:1px solid rgba(0,0,0,.04);pointer-events:none;border-radius:4px}
-
-  /* watermark (visible in screen + print) */
   .watermark{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);opacity:.04;width:62%;pointer-events:none;z-index:0}
   .watermark img{width:100%;height:auto;display:block}
-
-  /* header */
   header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;z-index:2}
   .logo img{height:70px;width:70px;object-fit:contain;display:block}
   .center-title{flex:1;text-align:center;margin:0 8px}
   .center-title h1{margin:0;font-size:20px;letter-spacing:.3px;font-weight:800}
-  /* --- CHANGED --- Abohar bold/bigger */
   .center-title p{margin:0;color:var(--muted);font-size:16px;font-weight:800}
   .qr-box{width:70px;height:70px;border-radius:6px;display:flex;align-items:center;justify-content:center;border:1px solid #eef2ff;background:#fff;position:relative}
-
-  /* centered copy label above QR (for preview) */
   .copy-badge{position:absolute;right:0;top:-24px;font-weight:800;color:#000;opacity:.9;font-size:13px;text-align:center;width:120px}
   .copy-badge .label-text{display:block;text-decoration:underline;}
-
-/* center info */
   .center-info{display:flex;align-items:center;justify-content:flex-start;gap:14px;margin:12px 0 10px;flex-wrap:wrap;z-index:2}
   .info-card{border:0;padding:4px 12px;border-radius:8px;min-width:180px;text-align:left;background:#fff}
   .info-card .label{font-size:12px;color:var(--muted);margin-bottom:6px}
   .info-card .value{font-weight:700}
-
-  /* form grid */
   .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px;z-index:2}
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
   .field input[type="text"], .field input[type="date"], .field select, textarea{
@@ -82,18 +66,13 @@
   }
   .field input[readonly]{background:#f9fafb;color:#111}
   textarea{resize:none;overflow:hidden;line-height:1.35;min-height:38px}
-
-  /* toggles */
   .toggles{display:flex;gap:12px;align-items:center;margin-top:12px;z-index:2}
-
-  /* items area */
   .items-wrap{margin-top:12px;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;z-index:2}
   .items{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
   .items thead th{background:#fafafa;padding:8px;border-bottom:1px solid var(--border);text-align:left}
   .items td{padding:8px;border-bottom:1px solid #f1f3f5;vertical-align:top}
   .items td input, .items td select, .items td textarea{width:100%;border:0;background:transparent;padding:6px;font-size:13px}
   .items td input[type="number"]{-moz-appearance:textfield}
-  /* column widths */
   .col-sr{width:5%}
   .col-desc{width:45%}
   .col-qty{width:10%}
@@ -102,11 +81,8 @@
   .col-srno{width:12%}
   .col-remark{width:18%}
   .items-wrap .scroll{overflow:auto;max-height:220px}
-
   .actions-row{display:flex;gap:10px;align-items:center;padding:10px}
   .btn.add{background:transparent;border:1px dashed #cfe6ff;color:var(--accent);padding:8px 10px;border-radius:8px}
-
-  /* signature blocks - original */
   .sig-outer{border:2px solid #d1d5db;border-radius:8px;padding:12px;margin-top:14px;background:#fff;z-index:2}
   .sig-row{display:flex;gap:8px;flex-wrap:wrap}
   .sig-block{flex:1;border:1px solid #d8dee4;border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:8px;background:#fff;min-width:220px;min-height:170px}
@@ -116,30 +92,19 @@
   .sig-row .small-input{min-width:80px;padding:6px}
   .sig-row .spacer{flex:1}
   .stamp-area{margin-top:6px;border-top:1.5px dashed #cfd8e3;padding-top:10px;height:72px;font-weight:700;display:flex;align-items:center;justify-content:center;color:#444;background:rgba(255,255,255,0.6)}
-
   .stamp-area.preview-blur{filter: blur(1px);opacity:0.6;}
-
-  /* remarks input field */
   .remarks{margin-top:12px;z-index:2}
   .remarks textarea{width:100%;padding:10px;border-radius:6px;border:1px solid #e6eef8;white-space:nowrap;overflow-x:auto;font-size:14px;min-height:44px}
-
-  /* printed info */
   .printed-info{margin-top:10px;text-align:right;color:var(--muted);font-size:12px;z-index:2}
-
-  /* small toast */
   .toast{position:fixed;right:20px;bottom:20px;background:#052e5d;color:#fff;padding:12px 16px;border-radius:8px;box-shadow:0 8px 24px rgba(2,6,23,.2);opacity:0;transform:translateY(10px);transition:all .28s}
   .toast.show{opacity:1;transform:translateY(0)}
-
-  /* --- PRINT RULES (1-PAGE FIX & LOGO) --- */
   @media print{
     @page{size:A4;margin:10mm}
     body{background:transparent;padding:0}
     .topbar{display:none}
-    /* --- CHANGED --- 1-Page compact print */
     .paper{box-shadow:none;border:none;padding:10mm;overflow:visible;min-height:277mm; border: 2px solid #000 !important;}
     .items-wrap .scroll{max-height:none;overflow:visible}
     .sig-outer{page-break-inside:avoid}
-    /* Force print background logo */
     .watermark{
       opacity:.06 !important;
       -webkit-print-color-adjust: exact;
@@ -147,21 +112,17 @@
     }
     textarea{height:auto !important;overflow:visible !important}
     .copy-label{position:absolute;left:50%;transform:translateX(-50%);top:8mm;font-weight:900;opacity:1;font-size:14px;text-decoration:underline;letter-spacing:1px}
-    .copy-label small{display:block;font-size:12px;opacity:0.9}
-    
     .header{margin-bottom: 4mm;}
-    .center-title{text-align: center;} /* Center 'Abohar' in print */
-    .title p{font-size:16px;font-weight:800} /* Abohar bold/bigger */
+    .center-title{text-align: center;}
+    .title p{font-size:16px;font-weight:800}
     table{margin-top: 4mm;}
-    table td, table th {padding: 3px 6px;} /* Tightened table cells */
+    table td, table th {padding: 3px 6px;}
     .note{margin-top: 4px;}
     .stamp-area{background:transparent;filter:none;opacity:1; height: 40px !important; padding-top: 6px !important; margin-top: 4px !important;}
-    .sig-block{min-height:100px; padding: 6px; gap:4px} /* Tightened */
-    .sig-outer{margin-top: 3mm !important; padding: 8px;} /* Tightened */
+    .sig-block{min-height:100px; padding: 6px; gap:4px}
+    .sig-outer{margin-top: 3mm !important; padding: 8px;}
     .footer{margin-top: 4mm;}
   }
-
-  /* --- RESPONSIVE / MOBILE FIX --- */
   @media (max-width:920px){
     .topbar{flex-direction: column; align-items: stretch; gap: 8px;}
     .hint{margin-left: 0;}
@@ -180,9 +141,7 @@
 
 <div class="topbar">
   <button class="btn" id="savePrint">Save & Print</button>
-  <!-- --- REMOVED --- PDF Button
-  <button class="btn secondary" id="downloadPdf">Download PDF</button> 
-  -->
+  <button class="btn secondary" id="downloadPdf">Download PDF</button>
   <button class="btn secondary" id="resetBtn">Reset</button>
 
   <div style="display:flex;gap:8px;align-items:center;margin-left:10px">
@@ -222,7 +181,6 @@
       <div class="info-card"><div class="label">Date</div><div><input type="date" id="gpDate" style="border:none;background:transparent;font-weight:700" max=""></div></div>
     </div>
 
-    <!-- --- CHANGED --- Swapped Consignee and Consignor, updated label -->
     <section class="form-grid">
       <div class="field"><label>Consignee Unit</label><input type="text" id="consignee" value="GWTPL Abohar" readonly></div>
       <div class="field"><label>Consignor Unit</label><input type="text" id="consignor" placeholder="e.g. Muktsar-2"></div>
@@ -273,7 +231,6 @@
       </div>
     </div>
 
-    <!-- --- CHANGED --- Title, Sr No. label, and Date field removed -->
     <div class="sig-outer">
       <strong>Consignor Unit / Received By</strong>
       <div class="sig-row" style="margin-top:8px">
@@ -308,8 +265,24 @@
 
 <script>
 /* ========== CONFIG ========== */
-// --- URL IS FILLED IN ---
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZ4gjl4nVK3gmniRYROdcMbB0Uyi7XF64VH0AEirrede0YsvBpPog-KvWLDzFGZuiXRg/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmLaEM27IuXedC8fJxeQF2AginJV-Yy5EO42rTNJfmMUpxDnnIOadK70M4RWqpnRuaSQ/exec";
+
+/* ========== SAVE FUNCTION ========== */
+async function saveToServer(payload) {
+  try {
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors", // HTMLService bridge handle करेगा
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    console.log("✅ Data sent to Google Apps Script");
+    return { success:true };
+  } catch (err) {
+    console.error("❌ Save failed:", err);
+    return { success:false, error:err.message };
+  }
+}
 
 /* DOM */
 const gpNoEl = document.getElementById('gpNo');
@@ -322,7 +295,7 @@ const toggleSr = document.getElementById('toggleSr');
 const toggleRemarks = document.getElementById('toggleRemarks');
 const addItemBtn = document.getElementById('addItem');
 const savePrintBtn = document.getElementById('savePrint');
-// --- REMOVED --- PDF Button const
+const downloadPdfBtn = document.getElementById('downloadPdf');
 const fetchDuplicateBtn = document.getElementById('fetchDuplicate');
 const duplicateInput = document.getElementById('duplicateGPNo');
 const printedInfoEl = document.getElementById('printedInfo');
@@ -340,28 +313,14 @@ function formatDateDDMMMYYYY(iso){ if(!iso) return ''; const d=new Date(iso); co
 function nowStamp(){ const d=new Date(); const pad2=s=>String(s).padStart(2,'0'); const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return `${pad2(d.getDate())}-${m[d.getMonth()]}-${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; }
 function showToast(msg,ms=2000){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),ms); }
 function escapeHtml(s=''){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-/* Smart normalization: Title Case (first letter upper, rest lower per word) */
-function normalizeText(s=''){
-  return String(s||'').trim().replace(/\s+/g,' ').split(' ').map(w=>{
-    return w ? (w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()) : '';
-  }).join(' ');
-}
-
-/* QR */
+function normalizeText(s=''){ return String(s||'').trim().replace(/\s+/g,' ').split(' ').map(w=>{ return w ? (w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()) : ''; }).join(' '); }
 async function generateQR(text){
   qrcodeEl.innerHTML='';
   const box = document.createElement('div'); qrcodeEl.appendChild(box);
   try{ new QRCode(box,{text:text||'',width:70,height:70,correctLevel:QRCode.CorrectLevel.H}); box.classList.add('qr-pulse'); }catch(e){ qrcodeEl.textContent='QR'; }
   await new Promise(r => setTimeout(r, 50));
 }
-function getQrDataUrl(){
-  const img = qrcodeEl.querySelector('img');
-  if(img && img.src) return img.src;
-  const canvas = qrcodeEl.querySelector('canvas');
-  if(canvas) return canvas.toDataURL('image/png');
-  return '';
-}
+function getQrDataUrl(){ const img = qrcodeEl.querySelector('img'); if(img && img.src) return img.src; const canvas = qrcodeEl.querySelector('canvas'); if(canvas) return canvas.toDataURL('image/png'); return ''; }
 
 /* Table head render */
 function renderHead(){
@@ -374,14 +333,7 @@ function renderHead(){
   tr.insertAdjacentHTML('beforeend','<th class="col-sr">Action</th>');
   itemsHead.appendChild(tr);
 }
-
-/* auto-resize textarea */
-function autoResizeTextarea(el){
-  if(!el) return;
-  el.style.height = 'auto';
-  const h = el.scrollHeight;
-  el.style.height = (h + 2) + 'px';
-}
+function autoResizeTextarea(el){ if(!el) return; el.style.height = 'auto'; const h = el.scrollHeight; el.style.height = (h + 2) + 'px'; }
 
 /* Render items */
 function renderItems(){
@@ -409,7 +361,6 @@ function renderItems(){
     itemsBody.appendChild(tr);
   });
 
-  // attach events
   itemsBody.querySelectorAll('textarea[data-f], input[data-f], select[data-f]').forEach(el=>{
     el.oninput = ()=>{
       const i = Number(el.dataset.i), f = el.dataset.f;
@@ -431,7 +382,6 @@ function renderItems(){
   computeTotals();
 }
 
-/* Totals */
 function computeTotals(){
   const map = {};
   items.forEach(it=>{
@@ -454,12 +404,10 @@ addItemBtn.onclick = ()=> {
   },50);
 };
 
-/* toggles */
 toggleTag.onchange = e => { enableTag = e.target.checked; if(!enableTag) items = items.map(it=>({...it,tag:''})); renderHead(); renderItems(); };
 toggleSr.onchange = e => { enableSr = e.target.checked; if(!enableSr) items = items.map(it=>({...it,sr:''})); renderHead(); renderItems(); };
 toggleRemarks.onchange = e => { enableRemarksFlag = e.target.checked; document.getElementById('remarks').style.display = enableRemarksFlag ? 'block' : 'none'; renderHead(); renderItems(); };
 
-/* Smart capitalization on blur for certain inputs */
 function attachSmartCaps(){
   ['consignor','personCarrying','vehicleNo','authPerson','authName1','authDesig1','authName2','authDesig2','outward1','inward2'].forEach(id=>{
     const el = document.getElementById(id);
@@ -468,7 +416,6 @@ function attachSmartCaps(){
   });
 }
 
-// --- NEW --- Function to handle year-based counter
 function getCounterData(type = 'preview') {
     const key = type === 'preview' ? 'gwtpl_preview_data' : 'gwtpl_local_data';
     const data = JSON.parse(localStorage.getItem(key) || '{}');
@@ -489,10 +436,9 @@ function getCounterData(type = 'preview') {
     return { year: storedYear, counter: counter };
 }
 
-/* initial setup */
 (async function init(){
   gpDateEl.max = todayISO();
-  gpDateEl.value = ''; // manual selection required
+  gpDateEl.value = '';
   const preview = generatePreviewGP(); 
   gpNoEl.textContent = preview;
   const qrDetailsPreview = `GP No: ${preview}\n(Preview)\nConsignee: ${document.getElementById('consignee').value}`;
@@ -510,10 +456,9 @@ function generatePreviewGP(){
   return `GWTPL/ABO/${data.year}/${pad(data.counter,4)}`;
 }
 
-/* reset */
 document.getElementById('resetBtn').onclick = ()=> { if(confirm('Reset form?')) location.reload(); };
 
-/* duplicate fetch (unchanged) */
+/* duplicate fetch */
 fetchDuplicateBtn.onclick = async ()=>{
   if(GOOGLE_SCRIPT_URL.includes("REPLACE_THIS")){
     alert("Please set up Google Script URL first. See Instructions.md");
@@ -549,7 +494,7 @@ fetchDuplicateBtn.onclick = async ()=>{
   }catch(err){ console.error(err); alert('Error fetching duplicate'); }
 };
 
-/* Save to server (POST) */
+/* Save to server (POST) - used by Save & Print flow */
 async function saveToServer(payload){
   if(GOOGLE_SCRIPT_URL.includes("REPLACE_THIS")){
     alert("Please set up Google Script URL first. See Instructions.md");
@@ -578,7 +523,7 @@ async function saveToServer(payload){
   }
 }
 
-/* Build the printable HTML pages (4 copies) and open print dialog */
+/* Build printable HTML ... (same as earlier) */
 function makePrintableHTML(labelSuffix='', copyLabel='OFFICE COPY'){
   const gpNo = gpNoEl.textContent;
   const type = document.getElementById('gpType').value;
@@ -615,7 +560,6 @@ function makePrintableHTML(labelSuffix='', copyLabel='OFFICE COPY'){
       print-color-adjust: exact;
     }`;
 
-  // --- CHANGED --- Compact 1-Page Print CSS
   const PRINT_CSS = `
     :root{--border:#cfcfcf;--muted:#6b7280;--accent:#0b5394}
     body{font-family:Inter,Arial,Helvetica;margin:0;color:#06203a}
@@ -631,7 +575,6 @@ function makePrintableHTML(labelSuffix='', copyLabel='OFFICE COPY'){
     table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4mm}
     table thead th{border-bottom:1px solid #ddd;padding:6px;text-align:left;background:#fafafa}
     table td{padding:3px 6px;border-bottom:1px solid #f3f3f3;vertical-align:top}
-    /* --- CHANGED --- More compact print */
     .sig-outer{border:2px solid #d1d5db;border-radius:6px;padding:8px;margin-top:3mm}
     .sig-row{display:flex;gap:8px;flex-wrap:wrap}
     .sig-block{flex:1;border:1px solid #d8dee4;border-radius:6px;padding:6px;min-height:100px;display:flex;flex-direction:column;gap:4px}
@@ -772,6 +715,7 @@ savePrintBtn.onclick = async ()=>{
   savePrintBtn.disabled = true; savePrintBtn.textContent = 'Saving...';
   showToast('Saving...');
 
+  // Use no-cors saveToServer to support GitHub Pages HTMLService bridge
   const res = await saveToServer(payload);
   
   if(res && res.success && res.gate_pass_no){
@@ -779,7 +723,6 @@ savePrintBtn.onclick = async ()=>{
     showToast('Saved: ' + res.gate_pass_no);
   } else {
     gpNoEl.textContent = generateLocalGP(); 
-    // --- CHANGED --- Show detailed error
     alert(`Save Error: ${res.error || 'Unknown error'}. \n\nIMPORTANT: Check Sheet Name ('GatePassLog') OR Re-Deploy Script (Deploy > Manage Deployments > Edit > Deploy).`);
   }
   
@@ -801,16 +744,38 @@ function generateLocalGP(){
   return `GWTPL/ABO/${data.year}/${pad(data.counter,4)}`;
 }
 
-/* --- REMOVED --- PDF Button Click Event */
+downloadPdfBtn.onclick = async ()=>{
+  const gpNo = gpNoEl.textContent || generateLocalGP();
+  const filename = gpNo.replace(/\//g,'-') + '.pdf';
+  showToast('Generating PDF...');
+  const qrDetails = `GP No: ${gpNo}\nDate: ${gpDateEl.value}\nConsignor: ${document.getElementById('consignor').value}\nConsignee: ${document.getElementById('consignee').value}\nVehicle: ${document.getElementById('vehicleNo').value}\nPerson: ${document.getElementById('personCarrying').value}\nAuth: ${document.getElementById('authPerson').value}`;
+  await generateQR(qrDetails);
+  const finalHTML = makePrintableHTML('','OFFICE COPY'); 
+  const container = document.createElement('div');
+  container.innerHTML = finalHTML;
+  const watermarks = container.querySelectorAll('.watermark');
+  watermarks.forEach(wm => wm.style.display = 'none');
+  await new Promise(r => setTimeout(r, 100));
+  const opt = {
+    margin: [10,10,10,10], 
+    filename: filename, 
+    image: {type:'jpeg', quality:0.98},
+    html2canvas: {scale: 2, useCORS: true, logging:false },
+    jsPDF: {unit:'mm', format:'a4', orientation:'portrait'}
+  };
+  html2pdf().from(container).set(opt).save().then(()=>{
+    showToast('PDF saved: ' + filename, 2200);
+  }).catch(err=>{
+    console.error(err);
+    showToast('PDF generation failed');
+  });
+};
 
-
-/* keyboard shortcuts */
 document.addEventListener('keydown', e=>{
   if(e.ctrlKey && e.key === 'Enter'){ addItemBtn.click(); }
   if(e.key === 'Escape'){ duplicateInput.value=''; }
 });
 
-/* initial toast */
 showToast('Ready — final build',1200);
 </script>
 </body>
