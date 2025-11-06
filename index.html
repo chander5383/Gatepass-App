@@ -307,22 +307,26 @@
 
 <script>
 /* ========== CONFIG ========== */
-// --- URL IS FILLED IN ---
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw_RbGXozw4-NR3TtXN0Jxn4leFJ1vo7pEcin-eFBD5kfVvTI3O4349vXeNzU7T2qXlMw/exec";
+// ✅ यहां तुम्हारा working Google Script URL
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzR_KASH1TMNwwIProHutlSn3CZSzd2gYSqLUWn-6sTVbRSzezld-KxT-fRRKgzjhGWrg/exec";
 
-  async function saveToServer(payload) {
-    try {
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      console.log("Data sent to Google Apps Script");
-    } catch (err) {
-      console.error("Save failed:", err);
-    }
+async function saveToServer(payload) {
+  try {
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json(); // ✅ JSON parse
+    console.log("✅ Data sent:", result);
+
+  } catch (err) {
+    console.error("❌ Save failed:", err);
   }
+}
+</script>
+
 
 /* DOM */
 const gpNoEl = document.getElementById('gpNo');
