@@ -310,11 +310,13 @@
 // ✅ यहां तुम्हारा working Google Script URL
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm2vDqrKsSVu93-RBZ3OvLqJSww-HVQFdxbpulgQBYf5I5Q_NOMFs57hAYaQH0n3r71A/exec";
 
+
+/* ========== SAVE FUNCTION ========== */
 async function saveToServer(payload) {
   try {
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
-      mode: "no-cors", // ✅ HTMLService bridge handle करेगा
+      mode: "no-cors", // HTMLService bridge handle करेगा
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
@@ -324,8 +326,10 @@ async function saveToServer(payload) {
   }
 }
 
-// ✅ Example: Save & Print Button
+/* ========== BUTTON CLICK EVENT ========== */
 document.getElementById("savePrintBtn").addEventListener("click", () => {
+
+  // 🔹 Step 1: Basic fields
   const payload = {
     date: document.getElementById("date")?.value || "",
     consignor: document.getElementById("consignor")?.value || "",
@@ -334,9 +338,27 @@ document.getElementById("savePrintBtn").addEventListener("click", () => {
     auth_person: document.getElementById("authPerson")?.value || "",
     type: document.getElementById("type")?.value || "",
     remarks: document.getElementById("remarks")?.value || "",
-    items: [] // अगर item list है तो यहां add कर लो
+    items: [] // 👇 नीचे items array में data push होगा
   };
 
+  // 🔹 Step 2: Items table से डेटा उठाओ
+  // मान लो items एक table में हैं: <table id="itemTable"> जिसमें rows हैं
+  const table = document.getElementById("itemTable");
+  if (table) {
+    const rows = table.querySelectorAll("tbody tr");
+    rows.forEach(row => {
+      const desc = row.querySelector(".item-desc")?.value || "";
+      const qty = row.querySelector(".item-qty")?.value || "";
+      const unit = row.querySelector(".item-unit")?.value || "";
+      if (desc || qty || unit) {
+        payload.items.push({ desc, qty, unit });
+      }
+    });
+  }
+
+  console.log("📦 Final Payload:", payload);
+
+  // 🔹 Step 3: Send to Google Sheet
   saveToServer(payload);
 });
 
