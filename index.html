@@ -308,23 +308,37 @@
 <script>
 /* ========== CONFIG ========== */
 // ✅ यहां तुम्हारा working Google Script URL
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzR_KASH1TMNwwIProHutlSn3CZSzd2gYSqLUWn-6sTVbRSzezld-KxT-fRRKgzjhGWrg/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm2vDqrKsSVu93-RBZ3OvLqJSww-HVQFdxbpulgQBYf5I5Q_NOMFs57hAYaQH0n3r71A/exec";
 
 async function saveToServer(payload) {
   try {
-    const response = await fetch(GOOGLE_SCRIPT_URL, {
+    await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
+      mode: "no-cors", // ✅ HTMLService bridge handle करेगा
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-
-    const result = await response.json(); // ✅ JSON parse
-    console.log("✅ Data sent:", result);
-
+    console.log("✅ Data sent to Google Apps Script");
   } catch (err) {
     console.error("❌ Save failed:", err);
   }
 }
+
+// ✅ Example: Save & Print Button
+document.getElementById("savePrintBtn").addEventListener("click", () => {
+  const payload = {
+    date: document.getElementById("date")?.value || "",
+    consignor: document.getElementById("consignor")?.value || "",
+    person_carrying: document.getElementById("personCarrying")?.value || "",
+    vehicle_no: document.getElementById("vehicleNo")?.value || "",
+    auth_person: document.getElementById("authPerson")?.value || "",
+    type: document.getElementById("type")?.value || "",
+    remarks: document.getElementById("remarks")?.value || "",
+    items: [] // अगर item list है तो यहां add कर लो
+  };
+
+  saveToServer(payload);
+});
 
 
 /* DOM */
