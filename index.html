@@ -265,19 +265,19 @@
 
 <script>
 /* ========== CONFIG ========== */
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwBF-UcZpGVBuSd-I1q4ge16eJEOhDIhz9-tMPD6DjRG2J4i82YYCY4NCtW7RWji25QBw/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRHs5rQ4Adzf0uT484TLPg8lToVYy03eB5CBYWSnHf3vAQf0WxFPmqzi1GpQiexIfNMw/exec";
 //https://docs.google.com/spreadsheets/d/1rt1-OgNmACT4zro2gSZjNDUB83V3hfvDTNMSzEqBFfA/edit?pli=1&gid=0#gid=0
 /* ========== SAVE FUNCTION ========== */
 async function saveToServer(payload) {
   try {
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
-      mode: "no-cors", // 👈 this allows GitHub Pages to send data without CORS block
+      mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    console.log("✅ Data sent to Google Apps Script (no-cors)");
-    return { success: true }; // assume success
+    console.log("✅ Data sent to Google Sheet (no-cors)");
+    return { success: true };
   } catch (err) {
     console.error("❌ Save failed:", err);
     return { success: false, error: err.message };
